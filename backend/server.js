@@ -10,7 +10,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Serve static files from frontend folder
+// Middleware
+app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Initialize MQTT Client
@@ -39,6 +40,78 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// GET /api/weight/latest
+app.get('/api/weight/latest', (req, res) => {
+  const latestWeight = mqttClient.getLatestWeight();
+  if (!latestWeight) {
+    return res.status(404).json({
+      success: false,
+      message: 'No weight data available'
+    });
+  }
+  res.json({
+    success: true,
+    data: latestWeight
+  });
+});
+
+// GET /api/weight/history
+app.get('/api/weight/history', (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  const history = mqttClient.getWeightHistory(limit);
+  res.json({
+    success: true,
+    count: history.length,
+    data: history
+  });
+});
+
+// GET /api/weight/stats
+app.get('/api/weight/stats', (req, res) => {
+  const stats = mqttClient.getStatistics();
+  if (!stats) {
+    return res.status(404).json({
+      success: false,
+      message: 'No weight data available'
+    });
+  }
+  res.json({
+    success: true,
+    data: stats
+  });
+});
+
+// POST /api/led/control
+app.post('/api/led/control', (req, res) => {
+  const { command } = req.body;
+  
+  if (!command) {
+    return res.status(400).json({
+      success: false,
+      message: 'Command is required'
+    });
+  }
+  
+  const result = mqttClient.sendLEDCommand(command);
+  res.json({
+    success: result,
+    message: result ? `LED command sent: ${command}` : 'Failed to send LED command'
+  });
+});
+
+// GET /api/system/status
+app.get('/api/system/status', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      mqtt_connected: mqttClient.isConnected(),
+      latest_weight: mqttClient.getLatestWeight(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    }
+  });
+});
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('👤 New client connected:', socket.id);
@@ -63,6 +136,24 @@ io.on('connection', (socket) => {
 
 // Start MQTT connection
 mqttClient.connect();
+
+// Pass Socket.IO instance
+mqttClient.setSocketIO(io);
+
+// Register MQTT callbacks
+mqttClient.onWeightData((data) => {
+  // Check overload
+  if (data.weight >= config.loadcell.overload_threshold) {
+    console.warn(`⚠️ OVERLOAD WARNING: ${data.weight} kg`);
+    mqttClient.sendLEDCommand('BLINK_RED');
+  }
+});
+
+mqttClient.onConfirm((data) => {
+  console.log(`📦 Processing confirmed weight: ${data.weight} kg`);
+  // TODO: Save to database
+  mqttClient.sendLEDCommand('HIGH_GREEN');
+});
 
 // Start server
 server.listen(config.server.port, '0.0.0.0', () => {
