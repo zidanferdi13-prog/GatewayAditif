@@ -1,0 +1,156 @@
+:root {
+  --primary-color: #2563eb;
+  --success-color: #10b981;
+  --danger-color: #ef4444;
+  --dark-bg: #000000;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background: var(--dark-bg);
+  color: var(--text-primary);
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  text-align: center;
+}
+
+/* Connection Status */
+.status-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.connected {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success-color);
+  border: 2px solid var(--success-color);
+}
+
+.status-badge.disconnected {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger-color);
+  border: 2px solid var(--danger-color);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.status-badge.connected .status-dot {
+  background: var(--success-color);
+}
+
+.status-badge.disconnected .status-dot {
+  background: var(--danger-color);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Weight Display */
+.weight-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.weight-label {
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 8px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.weight-value {
+  font-size: 120px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--primary-color);
+  text-shadow: 0 0 30px rgba(37, 99, 235, 0.6);
+  margin: 20px 0;
+  font-family: 'Arial Black', sans-serif;
+}
+
+.weight-unit {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--text-secondary);
+  letter-spacing: 4px;
+}
+
+/* Timestamp */
+.timestamp {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Responsive for small screens */
+@media (max-width: 480px) {
+  .weight-label {
+    font-size: 18px;
+    letter-spacing: 4px;
+  }
+  
+  .weight-value {
+    font-size: 80px;
+  }
+  
+  .weight-unit {
+    font-size: 24px;
+  }
+  
+  .status-badge {
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+  
+  .timestamp {
+    font-size: 11px;
+  }
+}

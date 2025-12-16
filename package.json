@@ -1,0 +1,22 @@
+{
+  "name": "amanerve-loadcell-dashboard",
+  "version": "1.0.0",
+  "description": "MQTT Loadcell Telemetry Dashboard",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js"
+  },
+  "keywords": ["mqtt", "loadcell", "telemetry", "dashboard"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mqtt": "^5.3.4",
+    "socket.io": "^4.6.1",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
