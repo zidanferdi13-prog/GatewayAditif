@@ -10,6 +10,10 @@
 <body>
   <div class="container">
     <!-- Connection Status -->
+    <button id="input-mo" class="status-mo disconnected">
+      <span id="nomorMO"><i>INPUT - MO</i></span>
+    </button>
+
     <div id="connectionStatus" class="status-badge disconnected">
       <span class="status-dot"></span>
       <span id="statusText">Disconnected</span>
@@ -17,15 +21,73 @@
 
     <!-- Live Weight Display -->
     <div class="weight-display">
-      <div class="weight-label">Timbangan Aditif</div>
-      <div class="weight-value" id="liveWeight">--</div>
+      <div class="weight-label" id="materialBahan">Bahan Material</div>
+      <div class="weight-row">
+        <div class="weight-value" id="liveWeight">--</div>
+        <div class="weight-target" id="targetWeight">--</div>
+      </div>
       <div class="weight-unit">kg</div>
     </div>
 
     <!-- Timestamp -->
     <div class="timestamp" id="lastUpdate">Waiting for data...</div>
+    <button id="printBtn" class="print-button">Print</button>
   </div>
 
+  <!-- Modal Popup Input MO -->
+  <div id="moModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Input Nomor MO</h2>
+      </div>
+      <div class="modal-body">
+        <p>Timbangan sudah mendeteksi berat!</p>
+        <p>Silakan input nomor MO terlebih dahulu</p>
+        <input type="text" id="moInputField" placeholder="Masukan Nomor MO..." maxlength="50">
+      </div>
+      <div class="modal-footer">
+        <button id="moSubmitBtn" class="btn-submit">Submit</button>
+        <button id="moCancelBtn" class="btn-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal Konfirmasi Reset MO -->
+  <div id="confirmResetModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Reset MO</h2>
+      </div>
+      <div class="modal-body">
+        <p>Apakah Anda yakin ingin mereset MO?</p>
+        <p>MO saat ini: <strong id="currentMODisplay"></strong></p>
+      </div>
+      <div class="modal-footer">
+        <button id="confirmResetBtn" class="btn-submit">Reset</button>
+        <button id="cancelResetBtn" class="btn-cancel">Batal</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal Alert Overload -->
+  <div id="alertOverloadModal" class="modal">
+    <div class="modal-content modal-warning">
+      <div class="modal-header">
+        <h2>⚠️ PERINGATAN</h2>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 16px; font-weight: bold; color: var(--danger-color);">Berat melebihi target!</p>
+        <div style="margin-top: 20px; text-align: left;">
+          <p>Berat saat ini: <strong id="overloadWeight" style="color: var(--primary-color);">0.00</strong> kg</p>
+          <p>Target: <strong id="overloadTarget" style="color: var(--text-secondary);">0.00</strong> kg</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="overloadOkBtn" class="btn-submit">OK</button>
+      </div>
+    </div>
+  </div>
+  
   <script src="js/app.js"></script>
 </body>
 </html>
