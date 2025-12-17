@@ -5,19 +5,48 @@ Dashboard untuk monitoring telemetry data dari loadcell melalui MQTT protocol.
 ## 📁 Struktur Project
 
 ```
-Gateway 3/
+GatewayAditif/
 ├── backend/
-│   ├── server.js           # Main server
-│   ├── mqtt-client.js      # MQTT client handler
-│   └── config.js           # Configuration
+│   ├── src/
+│   │   ├── config/           # Configuration files
+│   │   │   └── config.js     # App configuration
+│   │   ├── controllers/      # Request handlers
+│   │   │   ├── weightController.js
+│   │   │   ├── ledController.js
+│   │   │   └── statusController.js
+│   │   ├── services/         # Business logic
+│   │   │   └── mqttService.js # MQTT client handler
+│   │   ├── routes/           # API routes
+│   │   │   ├── index.js      # Main router
+│   │   │   ├── weightRoutes.js
+│   │   │   ├── ledRoutes.js
+│   │   │   └── statusRoutes.js
+│   │   ├── middleware/       # Express middleware (for future use)
+│   │   ├── utils/            # Helper functions (for future use)
+│   │   └── app.js            # Express app setup
+│   └── server.js             # Server entry point
 ├── frontend/
-│   ├── index.html          # Main dashboard page
-│   ├── css/
-│   │   └── style.css       # Styling
-│   └── js/
-│       └── app.js          # Frontend logic
+│   ├── public/               # Served static files
+│   │   ├── index.html        # Main dashboard page
+│   │   ├── css/              # Stylesheets
+│   │   │   └── style.css
+│   │   └── js/               # JavaScript files
+│   │       └── app.js        # Frontend logic
+│   ├── css/                  # Source CSS
+│   ├── js/                   # Source JS
+│   └── assets/               # Images and static assets
+│       └── images/
+├── logs/                     # Application logs
+│   └── CALIBRATION_LOG.txt   # Load cell calibration log
+├── docs/                     # Documentation
+│   ├── API.md               # API documentation
+│   └── SETUP.md             # Setup guide
+├── tests/                    # Test files
+│   ├── unit/                # Unit tests
+│   └── integration/         # Integration tests
 ├── package.json
-├── .env                    # Environment variables (buat sendiri)
+├── ecosystem.config.js      # PM2 configuration
+├── .env                     # Environment variables (create from .env.example)
 └── README.md
 ```
 
@@ -99,6 +128,41 @@ http://localhost:3000
 ## 🔧 Development
 
 Untuk development lebih lanjut:
-- Backend logic ada di folder `backend/`
-- Frontend UI ada di folder `frontend/`
+- Backend API ada di folder `backend/src/`
+  - Controllers: `backend/src/controllers/`
+  - Routes: `backend/src/routes/`
+  - Services: `backend/src/services/`
+  - Config: `backend/src/config/`
+- Frontend UI ada di folder `frontend/public/`
 - Konfigurasi MQTT bisa diubah di `.env`
+
+## 📚 Documentation
+
+- [API Documentation](docs/API.md) - Complete API reference
+- [Setup Guide](docs/SETUP.md) - Detailed setup instructions
+
+## 🏗️ Architecture
+
+Project mengikuti best practices dengan separation of concerns:
+
+- **MVC-like Pattern**: Controllers, Services, dan Routes terpisah
+- **Modular Structure**: Setiap komponen di folder tersendiri
+- **Configuration Management**: Centralized config di `config/`
+- **Clean Entry Point**: `server.js` minimal, hanya untuk bootstrap
+- **Static Files Organized**: Frontend files di `public/` folder
+
+## 📝 Adding New Features
+
+### New API Endpoint
+1. Create controller in `backend/src/controllers/`
+2. Create routes in `backend/src/routes/`
+3. Register routes in `backend/src/routes/index.js`
+
+### New MQTT Topic
+1. Update config in `backend/src/config/config.js`
+2. Add handler in `backend/src/services/mqttService.js`
+
+### New UI Component
+1. Update HTML in `frontend/public/index.html`
+2. Add styles in `frontend/public/css/`
+3. Add JavaScript in `frontend/public/js/`

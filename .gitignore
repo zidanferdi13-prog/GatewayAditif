@@ -1,5 +1,22 @@
 node_modules/
 .env
-*.log
 .DS_Store
-logs/
+
+# Logs
+logs/*.txt
+logs/*.log
+!logs/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+.tmp/

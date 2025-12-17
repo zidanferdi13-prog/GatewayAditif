@@ -1,117 +1,46 @@
-const express = require('express');
+/**
+ * Server Entry Point
+ * Initializes and starts the application server
+ */
+
 const http = require('http');
 const socketIo = require('socket.io');
-const path = require('path');
 const axios = require('axios');
-const config = require('./config');
-const MQTTClient = require('./mqtt-client');
+const config = require('./src/config/config');
+const createApp = require('./src/app');
+const MQTTClient = require('./src/services/mqttService');
 
-// Initialize Express
-const app = express();
+// Controllers
+const WeightController = require('./src/controllers/weightController');
+const LedController = require('./src/controllers/ledController');
+const StatusController = require('./src/controllers/statusController');
+
+// Initialize Socket.IO (will be set after server creation)
+let io;
+
+// Initialize MQTT Client (will pass io later)
+const mqttClient = new MQTTClient(null);
+
+// Initialize Controllers
+const weightController = new WeightController(mqttClient);
+const ledController = new LedController(mqttClient);
+const statusController = new StatusController(mqttClient);
+
+// Create Express app with controllers
+const app = createApp({
+  weightController,
+  ledController,
+  statusController
+});
+
+// Create HTTP server
 const server = http.createServer(app);
-const io = socketIo(server);
 
-// Middleware
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend')));
+// Initialize Socket.IO
+io = socketIo(server);
 
-// Initialize MQTT Client
-const mqttClient = new MQTTClient(io);
-
-// Routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
-
-// API endpoint to get historical data
-app.get('/api/history', (req, res) => {
-  res.json({
-    success: true,
-    data: mqttClient.getHistory()
-  });
-});
-
-// API endpoint to get connection status
-app.get('/api/status', (req, res) => {
-  res.json({
-    success: true,
-    connected: mqttClient.isConnected(),
-    topic: config.mqtt.topic,
-    broker: config.mqtt.broker
-  });
-});
-
-// GET /api/weight/latest
-app.get('/api/weight/latest', (req, res) => {
-  const latestWeight = mqttClient.getLatestWeight();
-  if (!latestWeight) {
-    return res.status(404).json({
-      success: false,
-      message: 'No weight data available'
-    });
-  }
-  res.json({
-    success: true,
-    data: latestWeight
-  });
-});
-
-// GET /api/weight/history
-app.get('/api/weight/history', (req, res) => {
-  const limit = parseInt(req.query.limit) || 50;
-  const history = mqttClient.getWeightHistory(limit);
-  res.json({
-    success: true,
-    count: history.length,
-    data: history
-  });
-});
-
-// GET /api/weight/stats
-app.get('/api/weight/stats', (req, res) => {
-  const stats = mqttClient.getStatistics();
-  if (!stats) {
-    return res.status(404).json({
-      success: false,
-      message: 'No weight data available'
-    });
-  }
-  res.json({
-    success: true,
-    data: stats
-  });
-});
-
-// POST /api/led/control
-app.post('/api/led/control', (req, res) => {
-  const { command } = req.body;
-  
-  if (!command) {
-    return res.status(400).json({
-      success: false,
-      message: 'Command is required'
-    });
-  }
-  
-  const result = mqttClient.sendLEDCommand(command);
-  res.json({
-    success: result,
-    message: result ? `LED command sent: ${command}` : 'Failed to send LED command'
-  });
-});
-
-// GET /api/system/status
-app.get('/api/system/status', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      mqtt_connected: mqttClient.isConnected(),
-      latest_weight: mqttClient.getLatestWeight(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage()
-    }
-  });
-});
+// Set Socket.IO instance to MQTT client
+mqttClient.setSocketIO(io);
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
@@ -225,9 +154,6 @@ io.on('connection', (socket) => {
 
 // Start MQTT connection
 mqttClient.connect();
-
-// Pass Socket.IO instance
-mqttClient.setSocketIO(io);
 
 // Register MQTT callbacks
 mqttClient.onWeightData((data) => {
