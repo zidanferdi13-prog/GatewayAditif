@@ -15,6 +15,9 @@ const WeightController = require('./src/controllers/weightController');
 const LedController = require('./src/controllers/ledController');
 const StatusController = require('./src/controllers/statusController');
 
+// Models
+const MOModel = require('./src/models/moModel');
+
 // Initialize Socket.IO (will be set after server creation)
 let io;
 
@@ -64,7 +67,7 @@ io.on('connection', (socket) => {
   });
   
   // Handle MO confirmation
-  socket.on('mo-confirmed', (data) => {
+  socket.on('mo-confirmed', async (data) => {
     console.log('📋 MO Confirmed:', data.mo, 'at', data.timestamp);
     
     // POST ke API eksternal
@@ -72,12 +75,14 @@ io.on('connection', (socket) => {
       nomor_mo: data.mo
     };
     
-    axios.post('https://services.ama.id/kanban/findOne', payload, {
+    const apiUrl = `${config.api.kanban.baseUrl}${config.api.kanban.findOneEndpoint}`;
+    
+    axios.post(apiUrl, payload, {
       headers: {
         'Content-Type': 'application/json'
       }
     })
-      .then((response) => {
+      .then(async (response) => {
         console.log('✅ API Response:');
         // Emit response kembali ke client
         socket.emit('mo-api-response', {
@@ -116,10 +121,40 @@ io.on('connection', (socket) => {
         console.log('📦 Target Weights:', targetWeights.map(tw => tw.toFixed(2)));
         console.log('📦 Total Qty RM:', totalQtyRM.toFixed(2));
         
+        // 💾 SAVE TO DATABASE
+        let moId = null;
+        try {
+          // 1. Save MO header
+          const moResult = await MOModel.create({
+            nomor_mo: item.data.nomor_mo,
+            qty_plan: item.data.qty_plan,
+            lot: item.data.lot || 0,
+            total_rm: produkRMItems.length
+          });
+          
+          moId = moResult.insertId;
+          console.log('✅ MO saved to DB with ID:', moId);
+          
+          // 2. Save RM details
+          for (let i = 0; i < produkRMItems.length; i++) {
+            await MOModel.createRMDetail(moId, {
+              item: produkRMItems[i],
+              qty: produkRMQty[i],
+              target_weight: targetWeights[i]
+            });
+          }
+          console.log('✅ RM details saved to DB');
+          
+        } catch (dbError) {
+          console.error('❌ Database Error:', dbError.message);
+          // Continue even if DB fails
+        }
+        
         // Emit data lengkap ke client untuk konfirmasi
         socket.emit('mo-data-confirm', {
           success: true,
           data: {
+            mo_id: moId,
             nomor_mo: item.data.nomor_mo,
             // qty_plan: item.data.qty_plan,
             qty_plan: 1,  
@@ -164,9 +199,26 @@ mqttClient.onWeightData((data) => {
   }
 });
 
-mqttClient.onConfirm((data) => {
+mqttClient.onConfirm(async (data) => {
   console.log(`📦 Processing confirmed weight: ${data.weight} kg`);
-  // TODO: Save to database
+  
+  // 💾 Save to database
+  if (data.mo_id && data.rm_item) {
+    try {
+      await MOModel.createWeightRecord({
+        mo_id: data.mo_id,
+        rm_item: data.rm_item,
+        actual_weight: data.weight,
+        timestamp: new Date()
+      });
+      console.log('✅ Weight saved to DB');
+    } catch (error) {
+      console.error('❌ Failed to save weight:', error.message);
+    }
+  } else {
+    console.warn('⚠️ Missing mo_id or rm_item, weight not saved to DB');
+  }
+  
   mqttClient.sendLEDCommand('HIGH_GREEN');
 });
 
