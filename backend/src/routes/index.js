@@ -19,14 +19,14 @@ module.exports = (controllers) => {
   // Mount LED routes
   router.use('/led', ledRoutes(ledController));
 
-  // Mount status routes
+  // Mount status routes at /status
   router.use('/status', statusRoutes(statusController));
+
+  // System status route at /system/status
+  router.get('/system/status', (req, res) => statusController.getSystemStatus(req, res));
 
   // Backward compatibility route for /api/history
   router.get('/history', (req, res) => weightController.getHistoricalData(req, res));
-
-  // Backward compatibility route for /api/system/status
-  router.get('/system/status', (req, res) => statusController.getSystemStatus(req, res));
 
   return router;
 };

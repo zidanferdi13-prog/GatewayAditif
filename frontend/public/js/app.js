@@ -245,19 +245,6 @@ function resetMO() {
   showMOModal();
 }
 
-function showOverloadWarning(weight, target) {
-  const modal = document.getElementById('alertOverloadModal');
-  document.getElementById('overloadWeight').innerText = weight.toFixed(2);
-  document.getElementById('overloadTarget').innerText = target.toFixed(2);
-  modal.classList.add('show');
-  console.log(`⚠️ OVERLOAD: ${weight.toFixed(2)} kg > ${target.toFixed(2)} kg`);
-}
-
-function closeOverloadWarning() {
-  const modal = document.getElementById('alertOverloadModal');
-  modal.classList.remove('show');
-}
-
 function saveMO(moNumber) {
   if (moNumber.trim() === '') {
     alert('Nomor MO tidak boleh kosong!');
