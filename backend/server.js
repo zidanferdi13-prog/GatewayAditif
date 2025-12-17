@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const axios = require('axios');
 const config = require('./config');
 const MQTTClient = require('./mqtt-client');
 
@@ -131,6 +132,94 @@ io.on('connection', (socket) => {
   // Handle request for history
   socket.on('request-history', () => {
     socket.emit('history-data', mqttClient.getHistory());
+  });
+  
+  // Handle MO confirmation
+  socket.on('mo-confirmed', (data) => {
+    console.log('📋 MO Confirmed:', data.mo, 'at', data.timestamp);
+    
+    // POST ke API eksternal
+    const payload = {
+      nomor_mo: data.mo
+    };
+    
+    axios.post('https://services.ama.id/kanban/findOne', payload, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+      .then((response) => {
+        console.log('✅ API Response:');
+        // Emit response kembali ke client
+        socket.emit('mo-api-response', {
+          success: true,
+          data: response.data
+        });
+
+        let item = response.data
+        console.log(item.data.nomor_mo, "Nomor MO dari API");
+        console.log(item.data.qty_plan, "Qty Plan dari API");
+        
+        // Array untuk menyimpan semua data RM (flexible)
+        let produkRMItems = [];
+        let produkRMQty = [];
+        let targetWeights = [];
+        let totalQtyRM = 0;
+        
+        // Loop untuk ambil semua data RM dan hitung target weight
+        item.data.produk_rm.forEach((rm, index) => {
+          console.log(`📦 RM [${index + 1}]:`, rm.item, '- Qty:', rm.qty);
+          
+          // Push ke array
+          produkRMItems.push(rm.item);
+          produkRMQty.push(rm.qty);
+          totalQtyRM += rm.qty;
+          
+          // Hitung target weight per RM
+          let targetWeight = rm.qty / item.data.qty_plan;
+          targetWeights.push(targetWeight);
+        });
+        
+        // Log hasil
+        console.log('📦 Total RM Items:', produkRMItems.length);
+        console.log('📦 All RM Items:', produkRMItems);
+        console.log('📦 All RM Qty:', produkRMQty);
+        console.log('📦 Target Weights:', targetWeights.map(tw => tw.toFixed(2)));
+        console.log('📦 Total Qty RM:', totalQtyRM.toFixed(2));
+        
+        // Emit data lengkap ke client untuk konfirmasi
+        socket.emit('mo-data-confirm', {
+          success: true,
+          data: {
+            nomor_mo: item.data.nomor_mo,
+            // qty_plan: item.data.qty_plan,
+            qty_plan: 1,  
+            lot: item.data.lot || 0,
+            produk_rm_items: produkRMItems,
+            produk_rm_qty: produkRMQty,
+            target_weights: targetWeights,
+            total_rm: produkRMItems.length
+          }
+        });
+
+      })
+      .catch((error) => {
+        console.error('❌ API Error:', error.message);
+        socket.emit('mo-api-response', {
+          success: false,
+          error: error.message
+        });
+      });
+  });
+  
+  // Handle print request
+  socket.on('print-confirm', (data) => {
+    console.log('🖨️ Print Request:', {
+      mo: data.mo,
+      weight: data.weight,
+      timestamp: data.timestamp
+    });
+    // TODO: Send to printer or save to print queue
   });
 });
 

@@ -156,7 +156,7 @@ class MQTTClient {
       
       // Log if stable
       if (payload.stable) {
-        console.log(`🔒 Weight LOCKED: ${payload.weight} kg`);
+        // console.log(`🔒 Weight LOCKED: ${payload.weight} kg`);
       }
       
       // Call onWeightDataCallback if registered

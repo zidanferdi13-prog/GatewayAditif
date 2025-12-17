@@ -14,6 +14,10 @@
       <span id="nomorMO"><i>INPUT - MO</i></span>
     </button>
 
+    <div class="status-lot">
+      <span id="lotText"><i>LOT: 0 / 48</i></span>
+    </div>
+
     <div id="connectionStatus" class="status-badge disconnected">
       <span class="status-dot"></span>
       <span id="statusText">Disconnected</span>
@@ -84,6 +88,70 @@
       </div>
       <div class="modal-footer">
         <button id="overloadOkBtn" class="btn-submit">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Konfirmasi Data MO dari API -->
+  <div id="moDataConfirmModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📋 Konfirmasi Data MO</h2>
+      </div>
+      <div class="modal-body" style="text-align: left;">
+        <p><strong>Nomor MO:</strong> <span id="confirmMONumber"></span></p>
+        <p><strong>Total Lot:</strong> <span id="confirmTotalLot"></span></p>
+        <p><strong>Jumlah Produk RM:</strong> <span id="confirmRMCount"></span></p>
+        <hr style="margin: 15px 0; border: 1px solid #334155;">
+        <h3 style="margin-bottom: 10px; color: var(--primary-color);">Detail Produk RM:</h3>
+        <div id="confirmRMDetails" style="max-height: 200px; overflow-y: auto;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="confirmDataBtn" class="btn-submit">Konfirmasi</button>
+        <button id="cancelDataBtn" class="btn-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Lot Increment Notification -->
+  <div id="lotIncrementModal" class="modal">
+    <div class="modal-content modal-success">
+      <div class="modal-header">
+        <h2>✅ LOT SELESAI</h2>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <p style="font-size: 20px; font-weight: bold; color: var(--success-color);">
+          Lot <span id="completedLotNumber"></span> Selesai!
+        </p>
+        <p style="font-size: 16px; margin-top: 10px;">
+          Melanjutkan ke Lot <span id="nextLotNumber"></span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Completion Summary -->
+  <div id="completionModal" class="modal">
+    <div class="modal-content modal-success">
+      <div class="modal-header">
+        <h2>🎉 SEMUA LOT SELESAI</h2>
+      </div>
+      <div class="modal-body" style="text-align: left;">
+        <p style="font-size: 18px; font-weight: bold; color: var(--success-color); text-align: center; margin-bottom: 15px;">
+          Pekerjaan Selesai!
+        </p>
+        <hr style="margin: 15px 0; border: 1px solid #334155;">
+        <p><strong>Nomor MO:</strong> <span id="summaryMONumber"></span></p>
+        <p><strong>Total Lot Diselesaikan:</strong> <span id="summaryTotalLot"></span></p>
+        <p><strong>Jumlah Produk RM:</strong> <span id="summaryRMCount"></span></p>
+        <p><strong>Total Item Ditimbang:</strong> <span id="summaryTotalItems"></span></p>
+        <hr style="margin: 15px 0; border: 1px solid #334155;">
+        <p style="text-align: center; color: var(--text-secondary);">
+          MO akan direset otomatis
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button id="completionOkBtn" class="btn-submit">OK</button>
       </div>
     </div>
   </div>
