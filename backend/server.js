@@ -126,14 +126,18 @@ io.on('connection', (socket) => {
         try {
           // 1. Save MO header
           const moResult = await MOModel.create({
+            t_mo_id: item.data.t_mo_id,
+            work_center: item.data.work_center,
             nomor_mo: item.data.nomor_mo,
+            nama_produk: item.data.nama_produk,
+            schedule_mo: item.data.schedule_mo,
             qty_plan: item.data.qty_plan,
             lot: item.data.lot || 0,
             total_rm: produkRMItems.length
           });
           
-          moId = moResult.insertId;
-          console.log('✅ MO saved to DB with ID:', moId);
+          moId = item.data.t_mo_id;
+          console.log('✅ MO saved to DB with ID:', item.data.t_mo_id);
           
           // 2. Save RM details
           for (let i = 0; i < produkRMItems.length; i++) {
@@ -156,8 +160,8 @@ io.on('connection', (socket) => {
           data: {
             mo_id: moId,
             nomor_mo: item.data.nomor_mo,
-            // qty_plan: item.data.qty_plan,
-            qty_plan: 1,  
+            qty_plan: item.data.qty_plan,
+            // qty_plan: 1,  
             lot: item.data.lot || 0,
             produk_rm_items: produkRMItems,
             produk_rm_qty: produkRMQty,
@@ -184,6 +188,7 @@ io.on('connection', (socket) => {
       timestamp: data.timestamp
     });
     // TODO: Send to printer or save to print queue
+
   });
 });
 

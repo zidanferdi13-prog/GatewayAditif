@@ -13,13 +13,17 @@ class MOModel {
    */
   static async create(data) {
     const query = `
-      INSERT INTO manufacturing_orders 
-      (nomor_mo, qty_plan, lot, total_rm, created_at) 
-      VALUES (?, ?, ?, ?, NOW())
+      INSERT INTO tbl_m_manufacturing_orders 
+      (t_mo_id, work_center, nomor_mo, nama_produk, schedule_mo, qty_plan, lot, total_rm, created_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
     try {
       const [result] = await db.execute(query, [
+        data.t_mo_id,
+        data.work_center,
         data.nomor_mo, 
+        data.nama_produk,
+        data.schedule_mo,
         data.qty_plan, 
         data.lot, 
         data.total_rm
@@ -39,13 +43,13 @@ class MOModel {
    */
   static async createRMDetail(moId, data) {
     const query = `
-      INSERT INTO mo_rm_details 
+      INSERT INTO tbl_mo_rm_details 
       (mo_id, item, qty, target_weight, created_at) 
       VALUES (?, ?, ?, ?, NOW())
     `;
     try {
       const [result] = await db.execute(query, [
-        moId, 
+        data.nomor_mo, 
         data.item, 
         data.qty, 
         data.target_weight
@@ -64,13 +68,13 @@ class MOModel {
    */
   static async createWeightRecord(data) {
     const query = `
-      INSERT INTO weight_records 
+      INSERT INTO tbl_weight_records 
       (mo_id, rm_item, actual_weight, timestamp) 
       VALUES (?, ?, ?, ?)
     `;
     try {
       const [result] = await db.execute(query, [
-        data.mo_id, 
+        data.nomor_mo, 
         data.rm_item, 
         data.actual_weight, 
         data.timestamp
@@ -97,8 +101,8 @@ class MOModel {
                  'target_weight', rm.target_weight
                )
              ) as rm_details
-      FROM manufacturing_orders mo
-      LEFT JOIN mo_rm_details rm ON mo.id = rm.mo_id
+      FROM tbl_m_manufacturing_orders mo
+      LEFT JOIN tbl_mo_rm_details rm ON mo.id = rm.mo_id
       WHERE mo.nomor_mo = ?
       GROUP BY mo.id
     `;
@@ -118,7 +122,7 @@ class MOModel {
    */
   static async getWeightRecords(moId) {
     const query = `
-      SELECT * FROM weight_records 
+      SELECT * FROM tbl_weight_records 
       WHERE mo_id = ? 
       ORDER BY timestamp DESC
     `;
@@ -139,7 +143,7 @@ class MOModel {
    */
   static async updateStatus(moId, status) {
     const query = `
-      UPDATE manufacturing_orders 
+      UPDATE tbl_m_manufacturing_orders 
       SET status = ?, updated_at = NOW() 
       WHERE id = ?
     `;
