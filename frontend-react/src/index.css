@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ════════════════════════════════════════════════════════════
+   AMA TIMBANGAN ADITIF v2 — React Edition
+   Global CSS: Design Tokens + Base Styles + Utilities
+════════════════════════════════════════════════════════════ */
+
+/* ── Design tokens (dark — default) ─────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-base:     #060c15;
+  --bg-surface:  #0b1524;
+  --bg-card:     #101c2e;
+  --bg-elevated: #172540;
+
+  /* Brand — Blue (small scale) */
+  --c-blue:        #3b82f6;
+  --c-blue-bright: #60a5fa;
+  --c-blue-glow:   rgba(59, 130, 246, .40);
+  --c-blue-dim:    rgba(59, 130, 246, .12);
+
+  /* Brand — Purple (large scale) */
+  --c-purple:      #8b5cf6;
+  --c-purple-glow: rgba(139, 92, 246, .40);
+  --c-purple-dim:  rgba(139, 92, 246, .12);
+
+  /* Status — Green */
+  --c-green:       #22c55e;
+  --c-green-glow:  rgba(34, 197, 94, .40);
+  --c-green-dim:   rgba(34, 197, 94, .12);
+
+  /* Status — Red */
+  --c-red:         #ef4444;
+  --c-red-glow:    rgba(239, 68, 68, .45);
+  --c-red-dim:     rgba(239, 68, 68, .14);
+
+  /* Status — Amber */
+  --c-amber:       #f59e0b;
+  --c-amber-glow:  rgba(245, 158, 11, .40);
+  --c-amber-dim:   rgba(245, 158, 11, .12);
+
+  /* Text */
+  --t-primary:   #e6f0ff;
+  --t-secondary: #5f80a0;
+  --t-muted:     #2c4260;
+
+  /* Borders */
+  --b-subtle: rgba(59, 130, 246, .10);
+  --b-card:   rgba(59, 130, 246, .20);
+
+  /* Fonts */
+  --font-ui:  'Inter', system-ui, sans-serif;
+  --font-num: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* ── Light theme override ────────────────────────────────── */
+.light {
+  --bg-base:     #f0f4f8;
+  --bg-surface:  #e2e8f0;
+  --bg-card:     #ffffff;
+  --bg-elevated: #f8fafc;
+
+  --c-blue:        #2563eb;
+  --c-blue-bright: #3b82f6;
+  --c-blue-dim:    rgba(37, 99, 235, .10);
+
+  --t-primary:   #0f172a;
+  --t-secondary: #475569;
+  --t-muted:     #94a3b8;
+
+  --b-subtle: rgba(37, 99, 235, .10);
+  --b-card:   rgba(37, 99, 235, .20);
+}
+
+/* ── Base reset ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg-base);
+  color: var(--t-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent bounce scrolling on iOS */
+  overscroll-behavior: none;
+}
+
+/* Scrollbar — subtle dark style */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb  { background: var(--b-card); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-blue); }
+
+/* ── Custom keyframes (not expressible as pure Tailwind) ─── */
+@keyframes flash-alarm {
+  0%   { opacity: 1;   }
+  100% { opacity: 0.3; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1;   }
+}
+
+/* ── Tailwind @layer additions ───────────────────────────── */
+@layer utilities {
+  .font-mono { font-family: var(--font-num); }
+  .font-ui   { font-family: var(--font-ui);  }
+
+  /* Touch-friendly tap targets */
+  .tap-target { min-height: 44px; min-width: 44px; }
+
+  /* Scale-panel top accent line */
+  .panel-accent::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59,130,246,.30), transparent);
+    pointer-events: none;
+  }
+}
+
+@layer components {
+  /* Reusable pill badge */
+  .badge {
+    @apply inline-block px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-[1.5px];
+  }
+
+  /* Dialog base card */
+  .dialog {
+    @apply bg-bg-card border border-b-card rounded-xl shadow-2xl overflow-hidden;
+  }
+}
+
+/* ── Responsive overrides ────────────────────────────────── */
+@media (max-width: 820px) {
+  :root { --header-h: 56px; }
+
+  /* Stack panels vertically on small screens */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto 20px auto;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Even tighter on phones */
+  .dashboard-grid {
+    padding: 10px;
+    gap: 10px;
+  }
+}
