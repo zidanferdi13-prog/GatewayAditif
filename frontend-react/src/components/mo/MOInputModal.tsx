@@ -61,7 +61,7 @@ export function MOInputModal() {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Contoh: MO-2026-001"
+            placeholder="Contoh: WAN/MO/26/1234"
             maxLength={50}
             autoComplete="off"
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}

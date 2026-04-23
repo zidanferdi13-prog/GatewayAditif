@@ -2,13 +2,14 @@
 # AMA Timbangan Aditif — Docker Compose
 #
 # Services
-#   app    — Node.js backend + React frontend (single image)
+#   nginx  — nginx reverse proxy, serves React SPA, proxies API + Socket.IO
+#   app    — Node.js backend (API + WebSocket only, not exposed to host)
 #   mysql  — MySQL 8.0 database (auto-initialised from schema.sql)
 #
 # Quick start
 #   1. cp .env.example .env          # edit passwords + serial port paths
 #   2. docker compose up --build -d
-#   3. Open http://localhost:3000
+#   3. Open http://localhost
 #
 # ⚠  WINDOWS SERIAL PORT NOTE ──────────────────────────────────────────────
 #   Docker Desktop on Windows uses a WSL2 (Linux) backend.  COM ports are
@@ -27,20 +28,45 @@
 
 services:
 
-  # ── Application (backend + frontend) ───────────────────────────────────────
+  # ── nginx reverse proxy ─────────────────────────────────────────────────────
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx-server
+    image: ama-nginx:latest
+    container_name: ama-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - ama-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Application (API + WebSocket only) ────────────────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: app
     image: ama-timbangan:latest
     container_name: ama-app
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # Port 3000 is NOT exposed to the host — nginx proxies internally.
+    # Uncomment the line below only for local debugging.
+    # ports:
+    #   - "127.0.0.1:3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
-      FRONTEND_DIR: /app/public
 
       # Serial ports (Linux paths — adjust after bridging COM ports, see above)
       SERIAL_SMALL_PORT: /dev/ttyS0

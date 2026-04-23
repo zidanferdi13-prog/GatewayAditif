@@ -4,8 +4,11 @@
 # Stage 1  (frontend-builder) : Build the React/Vite frontend
 # Stage 2  (app)              : Production Node.js image
 #   - Installs backend deps (incl. native serialport bindings)
-#   - Copies built frontend into /app/public  (served by Express)
+#   - Handles API + Socket.IO only (no static file serving needed)
 #   - Runs as non-root user
+# Stage 3  (nginx-server)     : nginx:alpine reverse proxy
+#   - Serves React static files directly (fast)
+#   - Proxies /api and /socket.io to the app service
 # =============================================================================
 
 # ── Stage 1: Build React frontend ────────────────────────────────────────────
@@ -59,10 +62,26 @@ USER appuser
 
 # ── Runtime configuration ─────────────────────────────────────────────────────
 EXPOSE 3000
-ENV NODE_ENV=production \
-    FRONTEND_DIR=/app/public
+ENV NODE_ENV=production
 
 # Graceful shutdown is handled via SIGINT in server.js
 STOPSIGNAL SIGINT
 
 CMD ["node", "backend/server.js"]
+
+
+# ── Stage 3: nginx reverse proxy ──────────────────────────────────────────────
+FROM nginx:alpine AS nginx-server
+
+# Copy built React app
+COPY --from=frontend-builder /build/dist /usr/share/nginx/html
+
+# Copy nginx site config
+COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Remove the default config that conflicts
+RUN rm -f /etc/nginx/conf.d/default.conf.bak
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
