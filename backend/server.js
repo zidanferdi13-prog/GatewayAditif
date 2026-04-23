@@ -1,263 +1,221 @@
+﻿'use strict';
+
 /**
- * Server Entry Point
- * Initializes and starts the application server
+ * AMA Timbangan Aditif — Server Entry Point
+ * Bootstraps HTTP, Socket.IO, and dual-scale serial connections.
  */
 
-const http = require('http');
+const http     = require('http');
 const socketIo = require('socket.io');
-const axios = require('axios');
-const config = require('./src/config/config');
+const config   = require('./src/config/config');
 const createApp = require('./src/app');
-const MQTTClient = require('./src/services/mqttService');
 
-// Controllers
+const SerialService = require('./src/services/serialService');
+const moService     = require('./src/services/moService');
+
 const WeightController = require('./src/controllers/weightController');
-const LedController = require('./src/controllers/ledController');
+const LedController    = require('./src/controllers/ledController');
 const StatusController = require('./src/controllers/statusController');
 
-// Models
-const MOModel = require('./src/models/moModel');
+/* ════════════════════════════════════════════════════════════
+   SERIAL CLIENTS
+════════════════════════════════════════════════════════════ */
+const serialSmall = new SerialService(null, 'small', config.scales.small);
+const serialLarge = new SerialService(null, 'large', config.scales.large);
 
-// Initialize Socket.IO (will be set after server creation)
-let io;
+/** Combined adapter — presents a single interface to controllers */
+const serialClient = {
+  sendLEDCommand: cmd =>
+    serialSmall.sendLEDCommand(cmd) || serialLarge.sendLEDCommand(cmd),
 
-// Initialize MQTT Client (will pass io later)
-const mqttClient = new MQTTClient(null);
+  getLatestWeight: () => {
+    const s = serialSmall.getLatestWeight();
+    const l = serialLarge.getLatestWeight();
+    if (!s) return l;
+    if (!l) return s;
+    return new Date(s.timestamp) >= new Date(l.timestamp) ? s : l;
+  },
 
-// Initialize Controllers
-const weightController = new WeightController(mqttClient);
-const ledController = new LedController(mqttClient);
-const statusController = new StatusController(mqttClient);
+  getWeightHistory: (limit = 50) => {
+    const merged = [
+      ...serialSmall.getWeightHistory(limit),
+      ...serialLarge.getWeightHistory(limit)
+    ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    return merged.slice(-limit);
+  },
 
-// Create Express app with controllers
-const app = createApp({
-  weightController,
-  ledController,
-  statusController
-});
+  getStatistics: () => {
+    const weights = serialClient.getWeightHistory(200).map(w => w.weight);
+    if (!weights.length) return null;
+    const sum = weights.reduce((a, b) => a + b, 0);
+    const latest = serialClient.getLatestWeight();
+    return {
+      count:   weights.length,
+      average: parseFloat((sum / weights.length).toFixed(4)),
+      min:     parseFloat(Math.min(...weights).toFixed(4)),
+      max:     parseFloat(Math.max(...weights).toFixed(4)),
+      latest:  latest ? latest.weight : null,
+      stable:  latest ? latest.stable : false
+    };
+  },
 
-// Create HTTP server
+  onWeightData: cb => { serialSmall.onWeightData(cb); serialLarge.onWeightData(cb); },
+  setSocketIO:  io => { serialSmall.setSocketIO(io);  serialLarge.setSocketIO(io); },
+  getHistory:   ()  => [
+    ...serialSmall.getHistory(),
+    ...serialLarge.getHistory()
+  ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
+  isConnected:  ()  => serialSmall.isConnected() || serialLarge.isConnected(),
+  disconnect:   ()  => { serialSmall.disconnect(); serialLarge.disconnect(); }
+};
+
+/* ════════════════════════════════════════════════════════════
+   EXPRESS + HTTP SERVER
+════════════════════════════════════════════════════════════ */
+const weightController = new WeightController(serialClient);
+const ledController    = new LedController(serialClient);
+const statusController = new StatusController(serialClient, serialSmall, serialLarge);
+
+const app    = createApp({ weightController, ledController, statusController });
 const server = http.createServer(app);
 
-// Initialize Socket.IO
-io = socketIo(server);
+/* ════════════════════════════════════════════════════════════
+   SOCKET.IO
+════════════════════════════════════════════════════════════ */
+const io = socketIo(server, {
+  cors: { origin: false }   // same-origin only; clients served by Express
+});
 
-// Set Socket.IO instance to MQTT client
-mqttClient.setSocketIO(io);
+serialClient.setSocketIO(io);
 
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('👤 New client connected:', socket.id);
-  
-  // Send current status to new client
-  socket.emit('mqtt-status', { 
-    connected: mqttClient.isConnected() 
-  });
-  
-  // Send historical data to new client
-  socket.emit('history-data', mqttClient.getHistory());
-  
+/* ── Input validators for socket events ──────────────── */
+function isValidMOString(val) {
+  return typeof val === 'string' && val.length > 0 && val.length <= 60 &&
+    /^[A-Za-z0-9\-_./]+$/.test(val);
+}
+
+function isValidPrintData(data) {
+  return data &&
+    typeof data === 'object' &&
+    isValidMOString(data.mo) &&
+    Number.isFinite(data.weight) &&
+    Number.isFinite(data.target) &&
+    Number.isInteger(data.lot) &&
+    Number.isInteger(data.rm_index);
+}
+
+/* ── Connection handler ──────────────────────────────── */
+io.on('connection', socket => {
+  console.log(`👤 Client connected: ${socket.id}`);
+
+  /* Send current connection state to the joining client */
+  socket.emit('serial-status:small', { scale: 'small', connected: serialSmall.isConnected() });
+  socket.emit('serial-status:large', { scale: 'large', connected: serialLarge.isConnected() });
+  socket.emit('serial-status',       { connected: serialClient.isConnected() });
+  socket.emit('history-data',         serialClient.getHistory());
+
   socket.on('disconnect', () => {
-    console.log('👤 Client disconnected:', socket.id);
+    console.log(`👤 Client disconnected: ${socket.id}`);
   });
-  
-  // Handle request for history
+
+  /* ── request-history ──────────────────────────────── */
   socket.on('request-history', () => {
-    socket.emit('history-data', mqttClient.getHistory());
+    socket.emit('history-data', serialClient.getHistory());
   });
-  
-  // Handle MO confirmation
-  socket.on('mo-confirmed', async (data) => {
-    console.log('📋 MO Confirmed:', data.mo, 'at', data.timestamp);
-    
-    // POST ke API eksternal
-    const payload = {
-      nomor_mo: data.mo
-    };
-    
-    const apiUrl = `${config.api.kanban.baseUrl}${config.api.kanban.findOneEndpoint}`;
-    
-    axios.post(apiUrl, payload, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-      .then(async (response) => {
-        console.log('✅ API Response:');
-        // Emit response kembali ke client
-        socket.emit('mo-api-response', {
-          success: true,
-          data: response.data
-        });
 
-        let item = response.data
-        console.log(item.data.nomor_mo, "Nomor MO dari API");
-        console.log(item.data.qty_plan, "Qty Plan dari API");
-        
-        // Array untuk menyimpan semua data RM (flexible)
-        let produkRMItems = [];
-        let produkRMQty = [];
-        let targetWeights = [];
-        let totalQtyRM = 0;
-        
-        // Loop untuk ambil semua data RM dan hitung target weight
-        item.data.produk_rm.forEach((rm, index) => {
-          console.log(`📦 RM [${index + 1}]:`, rm.item, '- Qty:', rm.qty);
-          
-          // Push ke array
-          produkRMItems.push(rm.item);
-          produkRMQty.push(rm.qty);
-          totalQtyRM += rm.qty;
-          
-          // Hitung target weight per RM
-          let targetWeight = rm.qty / item.data.qty_plan;
-          targetWeights.push(targetWeight);
-        });
-        
-        // Log hasil
-        console.log('📦 Total RM Items:', produkRMItems.length);
-        console.log('📦 All RM Items:', produkRMItems);
-        console.log('📦 All RM Qty:', produkRMQty);
-        console.log('📦 Target Weights:', targetWeights.map(tw => tw.toFixed(2)));
-        console.log('📦 Total Qty RM:', totalQtyRM.toFixed(2));
-        
-        // 💾 SAVE TO DATABASE
-        let moId = null;
-        try {
-          // 1. Save MO header
-          const moResult = await MOModel.create({
-            t_mo_id: item.data.t_mo_id,
-            work_center: item.data.work_center,
-            nomor_mo: item.data.nomor_mo,
-            nama_produk: item.data.nama_produk,
-            schedule_mo: item.data.schedule_mo,
-            qty_plan: item.data.qty_plan,
-            lot: item.data.lot || 0,
-            total_rm: produkRMItems.length
-          });
-          
-          moId = item.data.t_mo_id;
-          console.log('✅ MO saved to DB with ID:', item.data.t_mo_id);
-          
-          // 2. Save RM details
-          for (let i = 0; i < produkRMItems.length; i++) {
-            await MOModel.createRMDetail(moId, {
-              item: produkRMItems[i],
-              qty: produkRMQty[i],
-              target_weight: targetWeights[i]
-            });
-          }
-          console.log('✅ RM details saved to DB');
-          
-        } catch (dbError) {
-          console.error('❌ Database Error:', dbError.message);
-          // Continue even if DB fails
-        }
-        
-        // Emit data lengkap ke client untuk konfirmasi
-        socket.emit('mo-data-confirm', {
-          success: true,
-          data: {
-            mo_id: moId,
-            nomor_mo: item.data.nomor_mo,
-            qty_plan: item.data.qty_plan,
-            // qty_plan: 1,  
-            lot: item.data.lot || 0,
-            produk_rm_items: produkRMItems,
-            produk_rm_qty: produkRMQty,
-            target_weights: targetWeights,
-            total_rm: produkRMItems.length
-          }
-        });
+  /* ── mo-confirmed ─────────────────────────────────── */
+  socket.on('mo-confirmed', async data => {
+    const nomor_mo = data && data.mo;
 
-      })
-      .catch((error) => {
-        console.error('❌ API Error:', error.message);
-        socket.emit('mo-api-response', {
-          success: false,
-          error: error.message
-        });
+    if (!isValidMOString(nomor_mo)) {
+      return socket.emit('mo-data-confirm', {
+        success: false,
+        error:   'Nomor MO tidak valid'
       });
-  });
-  
-  // Handle print request
-  socket.on('print-confirm', (data) => {
-    console.log('🖨️ Print Request:', {
-      mo: data.mo,
-      weight: data.weight,
-      timestamp: data.timestamp
-    });
-    // TODO: Send to printer or save to print queue
-
-  });
-});
-
-// Start MQTT connection
-mqttClient.connect();
-
-// Register MQTT callbacks
-mqttClient.onWeightData((data) => {
-  // Check overload
-  if (data.weight >= config.loadcell.overload_threshold) {
-    console.warn(`⚠️ OVERLOAD WARNING: ${data.weight} kg`);
-    mqttClient.sendLEDCommand('BLINK_RED');
-  }
-});
-
-mqttClient.onConfirm(async (data) => {
-  console.log(`📦 Processing confirmed weight: ${data.weight} kg`);
-  
-  // 💾 Save to database
-  if (data.mo_id && data.rm_item) {
-    try {
-      await MOModel.createWeightRecord({
-        mo_id: data.mo_id,
-        rm_item: data.rm_item,
-        actual_weight: data.weight,
-        timestamp: new Date()
-      });
-      console.log('✅ Weight saved to DB');
-    } catch (error) {
-      console.error('❌ Failed to save weight:', error.message);
     }
-  } else {
-    console.warn('⚠️ Missing mo_id or rm_item, weight not saved to DB');
-  }
-  
-  mqttClient.sendLEDCommand('HIGH_GREEN');
+
+    console.log(`📋 MO confirmed by client: ${nomor_mo}`);
+
+    try {
+      const result = await moService.fetchAndProcessMO(nomor_mo);
+      socket.emit('mo-data-confirm', { success: true, data: result });
+    } catch (err) {
+      console.error(`❌ moService.fetchAndProcessMO error: ${err.message}`);
+      socket.emit('mo-data-confirm', { success: false, error: err.message });
+    }
+  });
+
+  /* ── print-confirm ────────────────────────────────── */
+  socket.on('print-confirm', async data => {
+    if (!isValidPrintData(data)) {
+      return console.warn('⚠️  print-confirm: invalid payload ignored');
+    }
+
+    console.log(`🖨️  Print confirm — MO=${data.mo} lot=${data.lot} RM[${data.rm_index}] ${data.weight}/${data.target} kg`);
+
+    moService.recordPrintConfirm(data).catch(err =>
+      console.error('❌ recordPrintConfirm failed:', err.message)
+    );
+  });
+
+  /* ── mo-completed ─────────────────────────────────── */
+  socket.on('mo-completed', async data => {
+    if (!data || !isValidMOString(data.mo)) {
+      return console.warn('⚠️  mo-completed: invalid payload ignored');
+    }
+
+    console.log(`🏁 MO completed: ${data.mo}  lots=${data.lots_completed}`);
+
+    moService.completeMO(data).catch(err =>
+      console.error('❌ completeMO failed:', err.message)
+    );
+  });
 });
 
-// Start server
+/* ════════════════════════════════════════════════════════════
+   SERIAL — START
+════════════════════════════════════════════════════════════ */
+serialSmall.connect();
+serialLarge.connect();
+
+/* Optional: log overload to server console */
+serialClient.onWeightData(data => {
+  if (data.weight >= config.loadcell.overload_threshold) {
+    console.warn(`⚠️  OVERLOAD [${data.scale}]: ${data.weight} kg`);
+  }
+});
+
+/* ════════════════════════════════════════════════════════════
+   HTTP LISTEN
+════════════════════════════════════════════════════════════ */
 server.listen(config.server.port, '0.0.0.0', () => {
   console.log('╔════════════════════════════════════════╗');
-  console.log('║       AmaNerve Loadcell Dashboard      ║');
+  console.log('║    AMA Timbangan Aditif  v2  — Ready   ║');
   console.log('╚════════════════════════════════════════╝');
-  console.log(`🚀 Server running on http://0.0.0.0:${config.server.port}`);
-  console.log(`📡 MQTT Topic: ${config.mqtt.topic}`);
-  console.log(`🔌 MQTT Broker: ${config.mqtt.broker}`);
-  console.log('════════════════════════════════════════');
+  console.log(`🚀  http://0.0.0.0:${config.server.port}`);
+  console.log(`📡  Small: ${config.scales.small.port} @ ${config.scales.small.baudRate} bps`);
+  console.log(`📡  Large: ${config.scales.large.port} @ ${config.scales.large.baudRate} bps`);
 });
 
-// Handle graceful shutdown
+/* ════════════════════════════════════════════════════════════
+   GRACEFUL SHUTDOWN
+════════════════════════════════════════════════════════════ */
 process.on('SIGINT', () => {
-  console.log('\n⚠️ Shutting down gracefully...');
-  
-  // Set timeout to force exit if graceful shutdown takes too long
-  const forceExitTimer = setTimeout(() => {
-    console.log('⚠️ Forcing exit...');
+  console.log('\n⚠️  Shutting down…');
+
+  const forceExit = setTimeout(() => {
+    console.warn('⚠️  Force exit after timeout');
     process.exit(1);
-  }, 3000);
-  
-  // Disconnect MQTT
-  mqttClient.disconnect();
-  
-  // Close server
+  }, 4000);
+
+  serialClient.disconnect();
+
   server.close(() => {
+    clearTimeout(forceExit);
     console.log('✅ Server closed');
-    clearTimeout(forceExitTimer);
     process.exit(0);
   });
-  
-  // Force close all connections
+
   server.closeAllConnections?.();
 });
+

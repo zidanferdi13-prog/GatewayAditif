@@ -155,6 +155,26 @@ class MOModel {
       throw error;
     }
   }
+  
+  /**
+   * Mark MO as completed
+   * @param {Object} data - MO completion data {mo, lots_completed, timestamp}
+   * @returns {Promise} Update result
+   */
+  static async markAsCompleted(data) {
+    const query = `
+      UPDATE tbl_m_manufacturing_orders 
+      SET status = 'completed', updated_at = ? 
+      WHERE nomor_mo = ?
+    `;
+    try {
+      const [result] = await db.execute(query, [data.timestamp, data.mo]);
+      return result;
+    } catch (error) {
+      console.error('❌ Error marking MO as completed:', error.message);
+      throw error;
+    }
+  }
 }
 
 module.exports = MOModel;

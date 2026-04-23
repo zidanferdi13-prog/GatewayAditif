@@ -1,436 +1,499 @@
-// Socket.io connection
-const socket = io();
+﻿/* ════════════════════════════════════════════════════════════
+   AMA Timbangan Aditif — Frontend Application
+   Industrial Monitoring Dashboard v2
+════════════════════════════════════════════════════════════ */
 
-// State variables
-let currentMO = null;
-let weightAboveZero = false;
-let overloadWarningShown = false;
+/* ──────────────────────────────────────────────────────────
+   CONSTANTS
+────────────────────────────────────────────────────────── */
+const SMALL_SCALE_MAX_KG    = 2.0;
+const AUTO_CONFIRM_DELAY_MS = 1500;
 
-// MO Data state (untuk sistem lot)
-let moData = null;
-let produkRMItems = [];
-let produkRMQty = [];
-let targetWeights = [];
-let currentRMIndex = 0;
-let currentLot = 0;
-let qtyPlan = 0;
+/* ──────────────────────────────────────────────────────────
+   STATE
+────────────────────────────────────────────────────────── */
+const State = {
+  currentMO:          null,
+  moData:             null,
+  produkRMItems:      [],
+  produkRMQty:        [],
+  targetWeights:      [],
+  currentRMIndex:     0,
+  currentLot:         0,
+  qtyPlan:            0,
+  weightAboveZero:    false,
+  autoConfirmActive:  false,
+  overloadShown:      { small: false, large: false },
 
-// Update connection status UI
-function updateConnectionStatus(connected) {
-  const statusBadge = document.getElementById('connectionStatus');
-  const statusText = document.getElementById('statusText');
-  
-  if (connected) {
-    statusBadge.className = 'status-badge connected';
-    statusText.textContent = 'Connected';
-  } else {
-    statusBadge.className = 'status-badge disconnected';
-    statusText.textContent = 'Disconnected';
+  reset() {
+    this.currentMO         = null;
+    this.moData            = null;
+    this.produkRMItems     = [];
+    this.produkRMQty       = [];
+    this.targetWeights     = [];
+    this.currentRMIndex    = 0;
+    this.currentLot        = 0;
+    this.qtyPlan           = 0;
+    this.weightAboveZero   = false;
+    this.autoConfirmActive = false;
+    this.overloadShown     = { small: false, large: false };
+  }
+};
+
+/* ──────────────────────────────────────────────────────────
+   DOM CACHE
+────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+
+const DOM = {
+  moBtn:        $('input-mo'),
+  moNumberEl:   $('nomorMO'),
+  lotCurrentEl: $('lotCurrent'),
+  lotTotalEl:   $('lotTotal'),
+  clockEl:      $('systemClock'),
+
+  small: {
+    card:         $('scaleCardSmall'),
+    weight:       $('liveWeightSmall'),
+    target:       $('targetWeightSmall'),
+    material:     $('materialBahanSmall'),
+    timestamp:    $('lastUpdateSmall'),
+    stability:    $('stabilitySmall'),
+    stabilityTxt: $('stabilityTextSmall'),
+    progress:     $('progressSmall'),
+    printBtn:     $('printBtnSmall'),
+    chip:         $('chipSmall'),
+    chipState:    $('statusTextSmall'),
+  },
+  large: {
+    card:         $('scaleCardLarge'),
+    weight:       $('liveWeightLarge'),
+    target:       $('targetWeightLarge'),
+    material:     $('materialBahanLarge'),
+    timestamp:    $('lastUpdateLarge'),
+    stability:    $('stabilityLarge'),
+    stabilityTxt: $('stabilityTextLarge'),
+    progress:     $('progressLarge'),
+    printBtn:     $('printBtnLarge'),
+    chip:         $('chipLarge'),
+    chipState:    $('statusTextLarge'),
+  }
+};
+
+/* ──────────────────────────────────────────────────────────
+   MODAL CONTROLLER
+────────────────────────────────────────────────────────── */
+const Modal = {
+  open(id, afterOpen) {
+    const el = $(id);
+    if (!el) return;
+    el.classList.add('show');
+    afterOpen?.();
+  },
+  close(id) {
+    const el = $(id);
+    if (el) el.classList.remove('show');
+  }
+};
+
+/* ──────────────────────────────────────────────────────────
+   SCALE HELPERS
+────────────────────────────────────────────────────────── */
+function getExpectedScale() {
+  if (!State.targetWeights.length || State.currentRMIndex >= State.targetWeights.length) return 'small';
+  const t = parseFloat(State.targetWeights[State.currentRMIndex]) || 0;
+  return t <= SMALL_SCALE_MAX_KG ? 'small' : 'large';
+}
+
+function setScaleConnection(scale, connected) {
+  const el = DOM[scale];
+  el.chip.classList.toggle('is-connected',    connected);
+  el.chip.classList.toggle('is-disconnected', !connected);
+  el.chipState.textContent = connected ? 'ON' : 'OFF';
+}
+
+function setScaleStability(scale, stable) {
+  const pill = DOM[scale].stability;
+  const txt  = DOM[scale].stabilityTxt;
+  pill.classList.toggle('is-stable',   stable);
+  pill.classList.toggle('is-unstable', !stable);
+  txt.textContent = stable ? 'STABIL' : 'GOYANG';
+}
+
+function setScaleWeight(scale, weight, target) {
+  const el    = DOM[scale];
+  const ratio = target > 0 ? Math.min(weight / target, 1.1) : 0;
+
+  el.weight.textContent    = weight.toFixed(2);
+  el.progress.style.width  = `${Math.min(ratio * 100, 100)}%`;
+
+  el.progress.classList.remove('is-near', 'is-ok', 'is-over');
+  el.weight.classList.remove('is-overload');
+
+  if (ratio >= 1.0) {
+    el.progress.classList.add('is-over');
+    el.weight.classList.add('is-overload');
+  } else if (ratio >= 0.9) {
+    el.progress.classList.add('is-near');
+  } else if (ratio >= 0.98) {
+    el.progress.classList.add('is-ok');
   }
 }
 
-// Update live weight display
-function updateWeight(data) {
-  const weight = parseFloat(data.weight || data.value || 0);
-  const target = parseFloat(document.getElementById('targetWeight').innerText) || 0;
-  const liveWeightElement = document.getElementById('liveWeight');
+function updateActiveScaleHighlight() {
+  const expected = getExpectedScale();
+  DOM.small.card.classList.toggle('active-scale', expected === 'small');
+  DOM.large.card.classList.toggle('active-scale', expected === 'large');
+}
 
-  // const weight = 100.0; // Example weight value
-  // const target = 2.0;  // Example target value
-
-  console.log(`Live Weight: ${weight} kg, Target: ${target} kg`);
-  
-  // Check jika berat > 0 dan belum ada MO
-  if (weight > 0 && !weightAboveZero && !currentMO) {
-    weightAboveZero = true;
-    showMOModal();
-  } else if (weight === 0) {
-    weightAboveZero = false;
-    overloadWarningShown = false;
-  }
-  
-  // Check overload (hanya trigger 1x)
-  if (weight > target && target > 0 && !overloadWarningShown) {
-    overloadWarningShown = true;
-    showOverloadWarning(weight, target);
-  } else if (weight <= target && overloadWarningShown) {
-    overloadWarningShown = false;
-    closeOverloadWarning();
-  }
-  
-  // Direct update
-  liveWeightElement.textContent = weight.toFixed(2);
-  document.getElementById('targetWeight').textContent = target.toFixed(2);
-  
-  // Update timestamp
-  const timestamp = new Date(data.timestamp || Date.now());
-  document.getElementById('lastUpdate').textContent = 
-    timestamp.toLocaleString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+/* ──────────────────────────────────────────────────────────
+   CLOCK
+────────────────────────────────────────────────────────── */
+function startClock() {
+  const tick = () => {
+    DOM.clockEl.textContent = new Date().toLocaleTimeString('id-ID', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
+  };
+  tick();
+  setInterval(tick, 1000);
 }
 
-// Modal Functions
-function showMOModal() {
-  const modal = document.getElementById('moModal');
-  modal.classList.add('show');
-  document.getElementById('moInputField').focus();
-}
+/* ──────────────────────────────────────────────────────────
+   MO MANAGEMENT
+────────────────────────────────────────────────────────── */
+function saveMO(moNumber) {
+  const mo = moNumber.trim();
+  if (!mo) return;
 
-function closeMOModal() {
-  const modal = document.getElementById('moModal');
-  modal.classList.remove('show');
-  document.getElementById('moInputField').value = '';
-}
+  State.currentMO = mo;
+  DOM.moNumberEl.textContent = mo;
+  DOM.moBtn.className = 'mo-btn mo-btn--active';
 
-function showConfirmResetModal() {
-  const modal = document.getElementById('confirmResetModal');
-  document.getElementById('currentMODisplay').innerText = currentMO;
-  modal.classList.add('show');
-}
-
-function closeConfirmResetModal() {
-  const modal = document.getElementById('confirmResetModal');
-  modal.classList.remove('show');
-}
-
-function showOverloadWarning(weight, target) {
-  const modal = document.getElementById('alertOverloadModal');
-  document.getElementById('overloadWeight').innerText = weight.toFixed(2);
-  document.getElementById('overloadTarget').innerText = target.toFixed(2);
-  modal.classList.add('show');
-  console.log(`⚠️ OVERLOAD: ${weight.toFixed(2)} kg > ${target.toFixed(2)} kg`);
-}
-
-function closeOverloadWarning() {
-  const modal = document.getElementById('alertOverloadModal');
-  modal.classList.remove('show');
-}
-
-function showMODataConfirmModal(data) {
-  const modal = document.getElementById('moDataConfirmModal');
-  
-  // Set data ke modal
-  document.getElementById('confirmMONumber').innerText = data.nomor_mo;
-  document.getElementById('confirmTotalLot').innerText = data.qty_plan;
-  document.getElementById('confirmRMCount').innerText = data.total_rm;
-  
-  // Build detail RM list
-  let detailHTML = '';
-  data.produk_rm_items.forEach((item, index) => {
-    detailHTML += `
-      <div style="padding: 8px; margin-bottom: 5px; background: rgba(37, 99, 235, 0.1); border-left: 3px solid var(--primary-color); border-radius: 4px;">
-        <strong>${index + 1}. ${item}</strong><br>
-        <span style="color: var(--text-secondary);">Qty: ${data.produk_rm_qty[index].toFixed(2)} kg</span><br>
-        <span style="color: var(--success-color);">Target/Lot: ${data.target_weights[index].toFixed(2)} kg</span>
-      </div>
-    `;
-  });
-  document.getElementById('confirmRMDetails').innerHTML = detailHTML;
-  
-  // Simpan data ke state sementara
-  window.tempMOData = data;
-  
-  modal.classList.add('show');
-}
-
-function closeMODataConfirmModal() {
-  const modal = document.getElementById('moDataConfirmModal');
-  modal.classList.remove('show');
-  window.tempMOData = null;
-}
-
-function confirmMOData() {
-  if (!window.tempMOData) return;
-  
-  const data = window.tempMOData;
-  
-  // Set global state
-  moData = data;
-  produkRMItems = data.produk_rm_items;
-  produkRMQty = data.produk_rm_qty;
-  targetWeights = data.target_weights;
-  qtyPlan = data.qty_plan;
-  currentRMIndex = 0;
-  currentLot = data.lot || 0;
-  
-  // Update UI dengan RM pertama
-  updateCurrentRM();
-  
-  console.log('✅ MO Data Confirmed. Starting with RM[0]:', produkRMItems[0]);
-  
-  closeMODataConfirmModal();
-}
-
-function updateCurrentRM() {
-  if (currentRMIndex < produkRMItems.length) {
-    // Update material bahan label
-    document.getElementById('materialBahan').innerText = produkRMItems[currentRMIndex];
-    
-    // Update target weight
-    document.getElementById('targetWeight').innerText = targetWeights[currentRMIndex].toFixed(2);
-    
-    // Update lot display
-    document.getElementById('lotText').innerText = `LOT: ${currentLot} / ${qtyPlan}`;
-    
-    console.log(`📦 Current RM[${currentRMIndex}]: ${produkRMItems[currentRMIndex]} - Target: ${targetWeights[currentRMIndex].toFixed(2)} kg`);
-  }
-}
-
-function showLotIncrementNotification(completedLot, nextLot) {
-  const modal = document.getElementById('lotIncrementModal');
-  document.getElementById('completedLotNumber').innerText = completedLot;
-  document.getElementById('nextLotNumber').innerText = nextLot;
-  modal.classList.add('show');
-  
-  console.log(`✅ Lot ${completedLot} completed! → Lot ${nextLot}`);
-  
-  // Auto close setelah 2 detik
-  setTimeout(() => {
-    modal.classList.remove('show');
-  }, 2000);
-}
-
-function showCompletionSummary() {
-  const modal = document.getElementById('completionModal');
-  
-  // Set summary data
-  document.getElementById('summaryMONumber').innerText = currentMO || '-';
-  document.getElementById('summaryTotalLot').innerText = qtyPlan;
-  document.getElementById('summaryRMCount').innerText = produkRMItems.length;
-  document.getElementById('summaryTotalItems').innerText = qtyPlan * produkRMItems.length;
-  
-  modal.classList.add('show');
-  
-  console.log('🎉 All lots completed! Showing summary...');
-}
-
-function closeCompletionModal() {
-  const modal = document.getElementById('completionModal');
-  modal.classList.remove('show');
-  
-  // Reset MO setelah close
-  resetMO();
+  socket.emit('mo-confirmed', { mo, timestamp: new Date().toISOString() });
+  Modal.close('moModal');
+  $('moInputField').value = '';
 }
 
 function resetMO() {
-  currentMO = null;
-  moData = null;
-  produkRMItems = [];
-  produkRMQty = [];
-  targetWeights = [];
-  currentRMIndex = 0;
-  currentLot = 0;
-  qtyPlan = 0;
-  
-  console.log('🔄 MO Reset - All data cleared');
-  
-  // Update display
-  document.getElementById('nomorMO').innerText = 'INPUT - MO';
-  document.getElementById('input-mo').classList.remove('connected');
-  document.getElementById('input-mo').classList.add('disconnected');
-  document.getElementById('lotText').innerText = 'LOT: 0 / 0';
-  document.getElementById('materialBahan').innerText = 'Bahan Material';
-  document.getElementById('targetWeight').innerText = '--';
-  
-  // Close confirmation modal
-  closeConfirmResetModal();
-  
-  // Open input modal
-  showMOModal();
-}
+  State.reset();
 
-function saveMO(moNumber) {
-  if (moNumber.trim() === '') {
-    alert('Nomor MO tidak boleh kosong!');
-    return;
-  }
-  
-  currentMO = moNumber;
-  console.log('✅ MO Saved:', currentMO);
-  
-  // Update display
-  document.getElementById('nomorMO').innerText = currentMO;
-  document.getElementById('input-mo').classList.remove('disconnected');
-  document.getElementById('input-mo').classList.add('connected');
-  
-  // Emit ke server
-  socket.emit('mo-confirmed', {
-    mo: currentMO,
-    timestamp: new Date().toISOString()
+  DOM.moNumberEl.textContent = 'INPUT MO';
+  DOM.moBtn.className = 'mo-btn mo-btn--idle';
+  DOM.lotCurrentEl.textContent = '0';
+  DOM.lotTotalEl.textContent   = '0';
+
+  ['small', 'large'].forEach(s => {
+    DOM[s].material.textContent  = '— Bahan Material —';
+    DOM[s].target.textContent    = '--';
+    DOM[s].progress.style.width  = '0%';
+    DOM[s].progress.className    = 'progress-fill';
+    DOM[s].weight.className      = 'weight-readout__val';
   });
 
-  closeMOModal();
+  updateActiveScaleHighlight();
+  Modal.close('confirmResetModal');
+  Modal.open('moModal', () => $('moInputField').focus());
 }
 
+/* ──────────────────────────────────────────────────────────
+   RM / LOT PROGRESS
+────────────────────────────────────────────────────────── */
+function updateCurrentRM() {
+  if (State.currentRMIndex >= State.produkRMItems.length) return;
 
-// Socket event handlers
-socket.on('connect', () => {
-  console.log('✅ Connected to server');
-  updateConnectionStatus(true);
-});
+  const material = State.produkRMItems[State.currentRMIndex];
+  const target   = parseFloat(State.targetWeights[State.currentRMIndex]) || 0;
+  const expected = getExpectedScale();
+
+  ['small', 'large'].forEach(s => {
+    DOM[s].material.textContent = material;
+    DOM[s].target.textContent   = s === expected ? target.toFixed(2) : '--';
+    if (s !== expected) {
+      DOM[s].progress.style.width = '0%';
+    }
+  });
+
+  DOM.lotCurrentEl.textContent = String(State.currentLot);
+  DOM.lotTotalEl.textContent   = String(State.qtyPlan);
+  updateActiveScaleHighlight();
+
+  console.log(`📦 RM[${State.currentRMIndex}]: ${material} → ${target.toFixed(2)} kg via ${expected}`);
+}
+
+function confirmCurrentRM(weight, target, scale, source = 'manual') {
+  if (!State.currentMO || !State.moData || State.autoConfirmActive) return;
+  State.autoConfirmActive = true;
+
+  const rm = State.produkRMItems[State.currentRMIndex];
+  console.log(`✅ [${source.toUpperCase()}] RM[${State.currentRMIndex}]: ${rm} | ${weight}/${target} kg | ${scale}`);
+
+  socket.emit('print-confirm', {
+    mo:         State.currentMO,
+    lot:        State.currentLot,
+    rm_index:   State.currentRMIndex,
+    rm_name:    rm,
+    scale_used: scale,
+    weight,
+    target,
+    timestamp:  new Date().toISOString()
+  });
+
+  setTimeout(() => {
+    State.autoConfirmActive = false;
+    advanceRMProgress();
+  }, AUTO_CONFIRM_DELAY_MS);
+}
+
+function advanceRMProgress() {
+  State.currentRMIndex++;
+
+  if (State.currentRMIndex >= State.produkRMItems.length) {
+    const done = State.currentLot;
+    State.currentLot++;
+    State.currentRMIndex = 0;
+
+    if (State.currentLot >= State.qtyPlan) {
+      showCompletionSummary();
+      socket.emit('mo-completed', {
+        mo:             State.currentMO,
+        lots_completed: State.qtyPlan,
+        timestamp:      new Date().toISOString()
+      });
+      return;
+    }
+
+    showLotCompleteToast(done, State.currentLot);
+  }
+
+  updateCurrentRM();
+}
+
+/* ──────────────────────────────────────────────────────────
+   NOTIFICATION HELPERS
+────────────────────────────────────────────────────────── */
+function showLotCompleteToast(done, next) {
+  $('completedLotNumber').textContent = done;
+  $('nextLotNumber').textContent      = next;
+  Modal.open('lotIncrementModal');
+  setTimeout(() => Modal.close('lotIncrementModal'), 2600);
+}
+
+function showCompletionSummary() {
+  $('summaryMONumber').textContent   = State.currentMO  || '—';
+  $('summaryTotalLot').textContent   = State.qtyPlan;
+  $('summaryRMCount').textContent    = State.produkRMItems.length;
+  $('summaryTotalItems').textContent = State.qtyPlan * State.produkRMItems.length;
+  Modal.open('completionModal');
+}
+
+function buildMOConfirmModal(data) {
+  $('confirmMONumber').textContent = data.nomor_mo;
+  $('confirmTotalLot').textContent = data.qty_plan;
+  $('confirmRMCount').textContent  = data.total_rm;
+
+  const list = $('confirmRMDetails');
+  list.innerHTML = '';
+
+  data.produk_rm_items.forEach((item, i) => {
+    const t     = parseFloat(data.target_weights[i]) || 0;
+    const scale = t <= SMALL_SCALE_MAX_KG ? 'SMALL' : 'LARGE';
+    const cls   = t <= SMALL_SCALE_MAX_KG ? '' : 'rm-item--large';
+    list.insertAdjacentHTML('beforeend', `
+      <div class="rm-item ${cls}">
+        <span class="rm-item__idx">${i + 1}</span>
+        <span class="rm-item__name">${item}</span>
+        <span class="rm-item__meta">${t.toFixed(2)} kg &bull; ${scale}</span>
+      </div>
+    `);
+  });
+
+  window._tempMOData = data;
+  Modal.open('moDataConfirmModal');
+}
+
+/* ──────────────────────────────────────────────────────────
+   SOCKET.IO
+────────────────────────────────────────────────────────── */
+const socket = io();
+
+socket.on('connect', () => console.log('🔌 Socket.IO connected'));
 
 socket.on('disconnect', () => {
-  console.log('❌ Disconnected from server');
-  updateConnectionStatus(false);
+  setScaleConnection('small', false);
+  setScaleConnection('large', false);
 });
 
-socket.on('mqtt-status', (status) => {
-  console.log('MQTT Status:', status);
-  updateConnectionStatus(status.connected);
+socket.on('serial-status', s => {
+  if (s?.scale) setScaleConnection(s.scale, !!s.connected);
 });
 
-socket.on('telemetry-data', (data) => {
-  console.log('Received telemetry data:', data);
-  updateWeight(data);
-});
+socket.on('serial-status:small', s => setScaleConnection('small', !!s.connected));
+socket.on('serial-status:large', s => setScaleConnection('large', !!s.connected));
 
-socket.on('weightData', (data) => {
-  console.log('Received weight data:', data);
-  updateWeight(data);
-});
+socket.on('weightData', data => {
+  const scale    = data.scale === 'large' ? 'large' : 'small';
+  const weight   = parseFloat(data.weight || 0);
+  const expected = getExpectedScale();
+  const target   = State.currentRMIndex < State.targetWeights.length
+    ? parseFloat(State.targetWeights[State.currentRMIndex]) || 0
+    : 0;
 
-// Socket handler untuk data MO dari API
-socket.on('mo-data-confirm', (response) => {
-  if (response.success) {
-    console.log('📋 MO Data received from API:', response.data);
-    showMODataConfirmModal(response.data);
-  } else {
-    console.error('❌ MO Data Error:', response.error);
-    alert('Gagal mendapatkan data MO dari server');
-  }
-});
+  /* — stability — */
+  setScaleStability(scale, !!data.stable);
 
-// Button Event Listeners
-document.getElementById('input-mo').addEventListener('click', function() {
-  if (!currentMO) {
-    // MO belum ada, langsung buka input modal
-    showMOModal();
-  } else {
-    // MO sudah ada, minta konfirmasi reset
-    showConfirmResetModal();
-  }
-});
+  /* — weight readout + progress bar — */
+  setScaleWeight(scale, weight, scale === expected ? target : 0);
 
-document.getElementById('moSubmitBtn').addEventListener('click', function() {
-  const moNumber = document.getElementById('moInputField').value;
-  saveMO(moNumber);
-});
-
-document.getElementById('moCancelBtn').addEventListener('click', function() {
-  closeMOModal();
-  weightAboveZero = false;
-});
-
-// Confirm Reset Modal Handlers
-document.getElementById('confirmResetBtn').addEventListener('click', function() {
-  resetMO();
-});
-
-document.getElementById('cancelResetBtn').addEventListener('click', function() {
-  closeConfirmResetModal();
-});
-
-// Overload Alert Handler
-document.getElementById('overloadOkBtn').addEventListener('click', function() {
-  closeOverloadWarning();
-});
-
-// MO Data Confirm Modal Handlers
-document.getElementById('confirmDataBtn').addEventListener('click', function() {
-  confirmMOData();
-});
-
-document.getElementById('cancelDataBtn').addEventListener('click', function() {
-  closeMODataConfirmModal();
-  // Cancel berarti reset MO
-  resetMO();
-});
-
-// Completion Modal Handler
-document.getElementById('completionOkBtn').addEventListener('click', function() {
-  closeCompletionModal();
-});
-
-// Enter key untuk submit modal
-document.getElementById('moInputField').addEventListener('keypress', function(e) {
-  if (e.key === 'Enter') {
-    saveMO(this.value);
-  }
-});
-
-// Print Button Handler (Konfirmasi timbangan selesai)
-document.getElementById('printBtn').addEventListener('click', function() {
-  if (!currentMO) {
-    alert('Silakan input Nomor MO terlebih dahulu!');
-    return;
-  }
-  
-  if (!moData || produkRMItems.length === 0) {
-    alert('Data MO belum dikonfirmasi!');
-    return;
-  }
-  
-  const weight = parseFloat(document.getElementById('liveWeight').innerText);
-  const currentRM = produkRMItems[currentRMIndex];
-  const targetWeight = targetWeights[currentRMIndex];
-  
-  console.log(`🖨️ Print/Confirm - RM[${currentRMIndex}]: ${currentRM}, Weight: ${weight} kg, Target: ${targetWeight} kg`);
-  
-  // Emit ke server untuk save/log
-  socket.emit('print-confirm', {
-    mo: currentMO,
-    lot: currentLot,
-    rm_index: currentRMIndex,
-    rm_name: currentRM,
-    weight: weight,
-    target: targetWeight,
-    timestamp: new Date().toISOString()
+  /* — timestamp — */
+  const ts = new Date(data.timestamp || Date.now());
+  DOM[scale].timestamp.textContent = ts.toLocaleTimeString('id-ID', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
   });
-  
-  this.disabled = true;
-  this.innerText = '✓ Processing...';
-  
-  setTimeout(() => {
-    this.disabled = false;
-    this.innerText = 'Print';
-    
-    // Pindah ke RM berikutnya
-    currentRMIndex++;
-    
-    // Cek apakah sudah selesai semua RM dalam lot ini
-    if (currentRMIndex >= produkRMItems.length) {
-      // Semua RM selesai, increment lot
-      const completedLot = currentLot;
-      currentLot++;
-      currentRMIndex = 0;
-      
-      console.log(`✅ Lot ${completedLot} completed! Moving to Lot ${currentLot}`);
-      
-      // Cek apakah sudah mencapai target lot
-      if (currentLot >= qtyPlan) {
-        // Semua lot selesai
-        console.log('🎉 All lots completed!');
-        showCompletionSummary();
-        return; // Stop disini, reset nanti di modal OK
-      } else {
-        // Masih ada lot lagi, tampilkan notifikasi
-        showLotIncrementNotification(completedLot, currentLot);
-      }
+
+  /* — prompt MO if weight detected — */
+  if (weight > 0 && !State.weightAboveZero && !State.currentMO) {
+    State.weightAboveZero = true;
+    Modal.open('moModal', () => $('moInputField').focus());
+  } else if (weight === 0) {
+    State.weightAboveZero = false;
+    State.overloadShown[scale] = false;
+  }
+
+  /* — overload alarm (only for expected scale) — */
+  if (scale === expected && target > 0) {
+    if (weight > target && !State.overloadShown[scale]) {
+      State.overloadShown[scale] = true;
+      $('overloadWeight').textContent = weight.toFixed(2);
+      $('overloadTarget').textContent = target.toFixed(2);
+      Modal.open('alertOverloadModal');
+    } else if (weight <= target && State.overloadShown[scale]) {
+      State.overloadShown[scale] = false;
+      Modal.close('alertOverloadModal');
     }
-    
-    // Update UI dengan RM berikutnya (atau RM[0] untuk lot baru)
-    updateCurrentRM();
-    
-  }, 1500);
+  }
+
+  /* — auto-confirm — */
+  if (
+    data.stable &&
+    State.moData &&
+    scale === expected &&
+    !State.autoConfirmActive &&
+    State.currentRMIndex < State.targetWeights.length &&
+    target > 0 &&
+    Math.round(weight * 100) === Math.round(target * 100)
+  ) {
+    console.log(`🤖 AUTO: [${scale}] ${weight} === ${target} kg (ST)`);
+    confirmCurrentRM(weight, target, scale, 'auto');
+  }
 });
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Loadcell Monitor initialized');
+socket.on('mo-data-confirm', response => {
+  if (response.success) {
+    buildMOConfirmModal(response.data);
+  } else {
+    console.error('MO API Error:', response.error);
+  }
 });
+
+/* ──────────────────────────────────────────────────────────
+   EVENT BINDINGS
+────────────────────────────────────────────────────────── */
+
+/* MO Button */
+$('input-mo').addEventListener('click', () => {
+  if (State.currentMO) {
+    $('currentMODisplay').textContent = State.currentMO;
+    Modal.open('confirmResetModal');
+  } else {
+    Modal.open('moModal', () => $('moInputField').focus());
+  }
+});
+
+/* MO Submit */
+$('moSubmitBtn').addEventListener('click', () => saveMO($('moInputField').value));
+$('moInputField').addEventListener('keypress', e => {
+  if (e.key === 'Enter') saveMO($('moInputField').value);
+});
+
+/* MO Cancel */
+$('moCancelBtn').addEventListener('click', () => {
+  Modal.close('moModal');
+  $('moInputField').value = '';
+  State.weightAboveZero = false;
+});
+
+/* Reset Confirm */
+$('confirmResetBtn').addEventListener('click', resetMO);
+$('cancelResetBtn').addEventListener('click', () => Modal.close('confirmResetModal'));
+
+/* Overload OK */
+$('overloadOkBtn').addEventListener('click', () => Modal.close('alertOverloadModal'));
+
+/* MO Data Confirm */
+$('confirmDataBtn').addEventListener('click', () => {
+  if (!window._tempMOData) return;
+  const data = window._tempMOData;
+
+  State.moData         = data;
+  State.produkRMItems  = data.produk_rm_items;
+  State.produkRMQty    = data.produk_rm_qty;
+  State.targetWeights  = data.target_weights;
+  State.qtyPlan        = data.qty_plan;
+  State.currentRMIndex = 0;
+  State.currentLot     = data.lot || 0;
+
+  updateCurrentRM();
+  Modal.close('moDataConfirmModal');
+  window._tempMOData = null;
+  console.log('✅ MO confirmed, RM[0]:', State.produkRMItems[0]);
+});
+
+$('cancelDataBtn').addEventListener('click', () => {
+  Modal.close('moDataConfirmModal');
+  window._tempMOData = null;
+  resetMO();
+});
+
+/* Completion */
+$('completionOkBtn').addEventListener('click', () => {
+  Modal.close('completionModal');
+  resetMO();
+});
+
+/* Manual Confirm Buttons */
+function bindManualConfirm(btnId, scale) {
+  $(btnId).addEventListener('click', function () {
+    if (!State.currentMO)  return console.warn('No MO active');
+    if (!State.moData)     return console.warn('No MO data');
+    if (scale !== getExpectedScale()) {
+      console.warn(`Wrong scale: expected ${getExpectedScale()}, got ${scale}`);
+      return;
+    }
+
+    const weight = parseFloat(DOM[scale].weight.textContent);
+    const target = parseFloat(State.targetWeights[State.currentRMIndex]) || 0;
+    if (isNaN(weight)) return;
+
+    this.disabled = true;
+    confirmCurrentRM(weight, target, scale, 'manual');
+    setTimeout(() => {
+      this.disabled = false;
+    }, AUTO_CONFIRM_DELAY_MS + 300);
+  });
+}
+
+bindManualConfirm('printBtnSmall', 'small');
+bindManualConfirm('printBtnLarge', 'large');
+
+/* ──────────────────────────────────────────────────────────
+   INIT
+────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  startClock();
+  updateActiveScaleHighlight();
+  setScaleConnection('small', false);
+  setScaleConnection('large', false);
+  console.log('🏭 AMA Timbangan Aditif v2 — Ready');
+});
+

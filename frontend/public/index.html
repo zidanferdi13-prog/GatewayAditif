@@ -1,161 +1,315 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Loadcell Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>AMA Timbangan Aditif</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <!-- Connection Status -->
-    <button id="input-mo" class="status-mo disconnected">
-      <span id="nomorMO"><i>INPUT - MO</i></span>
-    </button>
 
-    <div class="status-lot">
-      <span id="lotText"><i>LOT: 0 / 48</i></span>
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       HEADER
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="brand-icon">âš–</span>
+      <div class="brand-text">
+        <span class="brand-name">AMA Timbangan</span>
+        <span class="brand-sub">Aditif Monitor</span>
+      </div>
     </div>
 
-    <div id="connectionStatus" class="status-badge disconnected">
-      <span class="status-dot"></span>
-      <span id="statusText">Disconnected</span>
+    <div class="header-center">
+      <button id="input-mo" class="mo-btn mo-btn--idle">
+        <span class="mo-btn__icon">ðŸ“‹</span>
+        <span id="nomorMO">INPUT MO</span>
+      </button>
+      <div class="lot-counter">
+        <span class="lot-counter__label">LOT</span>
+        <span id="lotCurrent" class="lot-counter__val">0</span>
+        <span class="lot-counter__sep">/</span>
+        <span id="lotTotal" class="lot-counter__val">0</span>
+      </div>
     </div>
 
-    <!-- Live Weight Display -->
-    <div class="weight-display">
-      <div class="weight-label" id="materialBahan">Bahan Material</div>
-      <div class="weight-row">
-        <div class="weight-value" id="liveWeight">--</div>
-        <div class="weight-target" id="targetWeight">--</div>
-      </div>
-      <div class="weight-unit">kg</div>
-    </div>
-
-    <!-- Timestamp -->
-    <div class="timestamp" id="lastUpdate">Waiting for data...</div>
-    <button id="printBtn" class="print-button">Print</button>
-  </div>
-
-  <!-- Modal Popup Input MO -->
-  <div id="moModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Input Nomor MO</h2>
-      </div>
-      <div class="modal-body">
-        <p>Timbangan sudah mendeteksi berat!</p>
-        <p>Silakan input nomor MO terlebih dahulu</p>
-        <input type="text" id="moInputField" placeholder="Masukan Nomor MO..." maxlength="50">
-      </div>
-      <div class="modal-footer">
-        <button id="moSubmitBtn" class="btn-submit">Submit</button>
-        <button id="moCancelBtn" class="btn-cancel">Cancel</button>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Modal Konfirmasi Reset MO -->
-  <div id="confirmResetModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Reset MO</h2>
-      </div>
-      <div class="modal-body">
-        <p>Apakah Anda yakin ingin mereset MO?</p>
-        <p>MO saat ini: <strong id="currentMODisplay"></strong></p>
-      </div>
-      <div class="modal-footer">
-        <button id="confirmResetBtn" class="btn-submit">Reset</button>
-        <button id="cancelResetBtn" class="btn-cancel">Batal</button>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Modal Alert Overload -->
-  <div id="alertOverloadModal" class="modal">
-    <div class="modal-content modal-warning">
-      <div class="modal-header">
-        <h2>⚠️ PERINGATAN</h2>
-      </div>
-      <div class="modal-body">
-        <p style="font-size: 16px; font-weight: bold; color: var(--danger-color);">Berat melebihi target!</p>
-        <div style="margin-top: 20px; text-align: left;">
-          <p>Berat saat ini: <strong id="overloadWeight" style="color: var(--primary-color);">0.00</strong> kg</p>
-          <p>Target: <strong id="overloadTarget" style="color: var(--text-secondary);">0.00</strong> kg</p>
+    <div class="header-right">
+      <div class="conn-chips">
+        <div class="conn-chip" id="chipSmall">
+          <span class="conn-chip__dot"></span>
+          <span class="conn-chip__label">S1</span>
+          <span id="statusTextSmall" class="conn-chip__state">OFF</span>
+        </div>
+        <div class="conn-chip" id="chipLarge">
+          <span class="conn-chip__dot"></span>
+          <span class="conn-chip__label">S2</span>
+          <span id="statusTextLarge" class="conn-chip__state">OFF</span>
         </div>
       </div>
-      <div class="modal-footer">
-        <button id="overloadOkBtn" class="btn-submit">OK</button>
+      <div class="sys-clock" id="systemClock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       MAIN â€” DUAL SCALE PANELS
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <main class="main-content">
+
+    <!-- TIMBANGAN KECIL -->
+    <section id="scaleCardSmall" class="scale-panel scale-panel--small">
+      <div class="panel-header">
+        <div class="panel-header__left">
+          <span class="panel-badge panel-badge--small">SMALL</span>
+          <span class="panel-range">â‰¤ 2 kg</span>
+        </div>
+        <div class="stability-pill" id="stabilitySmall">
+          <span class="stability-pill__dot"></span>
+          <span id="stabilityTextSmall" class="stability-pill__text">WAIT</span>
+        </div>
+      </div>
+
+      <div class="panel-material" id="materialBahanSmall">â€” Bahan Material â€”</div>
+
+      <div class="weight-readout">
+        <span class="weight-readout__val" id="liveWeightSmall">--.-</span>
+        <span class="weight-readout__unit">kg</span>
+      </div>
+
+      <div class="target-row">
+        <span class="target-row__label">TARGET</span>
+        <span class="target-row__val" id="targetWeightSmall">--</span>
+        <span class="target-row__unit">kg</span>
+      </div>
+
+      <div class="progress-track">
+        <div class="progress-fill" id="progressSmall"></div>
+      </div>
+
+      <div class="panel-footer">
+        <span class="panel-timestamp" id="lastUpdateSmall">Menunggu dataâ€¦</span>
+        <button id="printBtnSmall" class="confirm-btn">
+          <span>âœ”</span> Konfirmasi
+        </button>
+      </div>
+    </section>
+
+    <!-- DIVIDER -->
+    <div class="panel-divider" aria-hidden="true">
+      <div class="panel-divider__line"></div>
+      <span class="panel-divider__badge">VS</span>
+      <div class="panel-divider__line"></div>
+    </div>
+
+    <!-- TIMBANGAN BESAR -->
+    <section id="scaleCardLarge" class="scale-panel scale-panel--large">
+      <div class="panel-header">
+        <div class="panel-header__left">
+          <span class="panel-badge panel-badge--large">LARGE</span>
+          <span class="panel-range">&gt; 2 kg</span>
+        </div>
+        <div class="stability-pill" id="stabilityLarge">
+          <span class="stability-pill__dot"></span>
+          <span id="stabilityTextLarge" class="stability-pill__text">WAIT</span>
+        </div>
+      </div>
+
+      <div class="panel-material" id="materialBahanLarge">â€” Bahan Material â€”</div>
+
+      <div class="weight-readout">
+        <span class="weight-readout__val" id="liveWeightLarge">--.-</span>
+        <span class="weight-readout__unit">kg</span>
+      </div>
+
+      <div class="target-row">
+        <span class="target-row__label">TARGET</span>
+        <span class="target-row__val" id="targetWeightLarge">--</span>
+        <span class="target-row__unit">kg</span>
+      </div>
+
+      <div class="progress-track">
+        <div class="progress-fill" id="progressLarge"></div>
+      </div>
+
+      <div class="panel-footer">
+        <span class="panel-timestamp" id="lastUpdateLarge">Menunggu dataâ€¦</span>
+        <button id="printBtnLarge" class="confirm-btn">
+          <span>âœ”</span> Konfirmasi
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       DIALOG â€” INPUT MO
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <div id="moModal" class="overlay" role="dialog" aria-modal="true">
+    <div class="dialog">
+      <div class="dialog__head">
+        <span class="dialog__icon">ðŸ“‹</span>
+        <h2 class="dialog__title">Input Nomor MO</h2>
+        <p class="dialog__sub">Masukkan nomor Manufacturing Order untuk memulai penimbangan</p>
+      </div>
+      <div class="dialog__body">
+        <div class="field-wrap">
+          <label class="field-label" for="moInputField">Nomor MO</label>
+          <input id="moInputField" class="field-input" type="text"
+                 placeholder="Contoh: MO-2026-001" maxlength="50" autocomplete="off">
+        </div>
+      </div>
+      <div class="dialog__foot">
+        <button id="moCancelBtn" class="btn btn--ghost">Batal</button>
+        <button id="moSubmitBtn" class="btn btn--primary">Mulai</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Konfirmasi Data MO dari API -->
-  <div id="moDataConfirmModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>📋 Konfirmasi Data MO</h2>
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       DIALOG â€” KONFIRMASI RESET MO
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <div id="confirmResetModal" class="overlay" role="dialog" aria-modal="true">
+    <div class="dialog dialog--warn">
+      <div class="dialog__head">
+        <span class="dialog__icon">âš </span>
+        <h2 class="dialog__title">Reset MO?</h2>
+        <p class="dialog__sub">Semua progres lot saat ini akan dihapus</p>
       </div>
-      <div class="modal-body" style="text-align: left;">
-        <p><strong>Nomor MO:</strong> <span id="confirmMONumber"></span></p>
-        <p><strong>Total Lot:</strong> <span id="confirmTotalLot"></span></p>
-        <p><strong>Jumlah Produk RM:</strong> <span id="confirmRMCount"></span></p>
-        <hr style="margin: 15px 0; border: 1px solid #334155;">
-        <h3 style="margin-bottom: 10px; color: var(--primary-color);">Detail Produk RM:</h3>
-        <div id="confirmRMDetails" style="max-height: 200px; overflow-y: auto;"></div>
+      <div class="dialog__body">
+        <div class="kv-box kv-box--warn">
+          <span class="kv-box__label">MO Aktif</span>
+          <span id="currentMODisplay" class="kv-box__val">â€”</span>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button id="confirmDataBtn" class="btn-submit">Konfirmasi</button>
-        <button id="cancelDataBtn" class="btn-cancel">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Lot Increment Notification -->
-  <div id="lotIncrementModal" class="modal">
-    <div class="modal-content modal-success">
-      <div class="modal-header">
-        <h2>✅ LOT SELESAI</h2>
-      </div>
-      <div class="modal-body" style="text-align: center;">
-        <p style="font-size: 20px; font-weight: bold; color: var(--success-color);">
-          Lot <span id="completedLotNumber"></span> Selesai!
-        </p>
-        <p style="font-size: 16px; margin-top: 10px;">
-          Melanjutkan ke Lot <span id="nextLotNumber"></span>
-        </p>
+      <div class="dialog__foot">
+        <button id="cancelResetBtn"  class="btn btn--ghost">Batal</button>
+        <button id="confirmResetBtn" class="btn btn--danger">Reset MO</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Completion Summary -->
-  <div id="completionModal" class="modal">
-    <div class="modal-content modal-success">
-      <div class="modal-header">
-        <h2>🎉 SEMUA LOT SELESAI</h2>
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       DIALOG â€” OVERLOAD ALARM
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <div id="alertOverloadModal" class="overlay overlay--alarm" role="alertdialog" aria-modal="true">
+    <div class="dialog dialog--alarm">
+      <div class="dialog__head">
+        <span class="dialog__icon dialog__icon--flash">â›”</span>
+        <h2 class="dialog__title">BERAT MELEBIHI TARGET</h2>
+        <p class="dialog__sub">Segera angkat material dari timbangan</p>
       </div>
-      <div class="modal-body" style="text-align: left;">
-        <p style="font-size: 18px; font-weight: bold; color: var(--success-color); text-align: center; margin-bottom: 15px;">
-          Pekerjaan Selesai!
-        </p>
-        <hr style="margin: 15px 0; border: 1px solid #334155;">
-        <p><strong>Nomor MO:</strong> <span id="summaryMONumber"></span></p>
-        <p><strong>Total Lot Diselesaikan:</strong> <span id="summaryTotalLot"></span></p>
-        <p><strong>Jumlah Produk RM:</strong> <span id="summaryRMCount"></span></p>
-        <p><strong>Total Item Ditimbang:</strong> <span id="summaryTotalItems"></span></p>
-        <hr style="margin: 15px 0; border: 1px solid #334155;">
-        <p style="text-align: center; color: var(--text-secondary);">
-          MO akan direset otomatis
-        </p>
+      <div class="dialog__body">
+        <div class="alarm-stats">
+          <div class="alarm-stat">
+            <span class="alarm-stat__label">Berat Sekarang</span>
+            <div class="alarm-stat__readout">
+              <span id="overloadWeight" class="alarm-stat__val alarm-stat__val--danger">0.00</span>
+              <span class="alarm-stat__unit">kg</span>
+            </div>
+          </div>
+          <div class="alarm-stat">
+            <span class="alarm-stat__label">Target Maksimum</span>
+            <div class="alarm-stat__readout">
+              <span id="overloadTarget" class="alarm-stat__val alarm-stat__val--muted">0.00</span>
+              <span class="alarm-stat__unit">kg</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button id="completionOkBtn" class="btn-submit">OK</button>
+      <div class="dialog__foot">
+        <button id="overloadOkBtn" class="btn btn--danger btn--block">Mengerti</button>
       </div>
     </div>
   </div>
-  
+
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       DIALOG â€” KONFIRMASI DATA MO
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <div id="moDataConfirmModal" class="overlay" role="dialog" aria-modal="true">
+    <div class="dialog dialog--wide">
+      <div class="dialog__head">
+        <span class="dialog__icon">ðŸ“¦</span>
+        <h2 class="dialog__title">Konfirmasi Data MO</h2>
+        <p class="dialog__sub">Periksa detail sebelum proses penimbangan dimulai</p>
+      </div>
+      <div class="dialog__body">
+        <div class="mo-stats">
+          <div class="mo-stat">
+            <span class="mo-stat__label">Nomor MO</span>
+            <span id="confirmMONumber" class="mo-stat__val">â€”</span>
+          </div>
+          <div class="mo-stat">
+            <span class="mo-stat__label">Total Lot</span>
+            <span id="confirmTotalLot" class="mo-stat__val">â€”</span>
+          </div>
+          <div class="mo-stat">
+            <span class="mo-stat__label">Produk RM</span>
+            <span id="confirmRMCount" class="mo-stat__val">â€”</span>
+          </div>
+        </div>
+        <div class="rm-list-title">Detail Produk RM</div>
+        <div id="confirmRMDetails" class="rm-list"></div>
+      </div>
+      <div class="dialog__foot">
+        <button id="cancelDataBtn"  class="btn btn--ghost">Batal</button>
+        <button id="confirmDataBtn" class="btn btn--primary">Konfirmasi &amp; Mulai</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       TOAST â€” LOT SELESAI
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <div id="lotIncrementModal" class="overlay overlay--toast" aria-live="polite">
+    <div class="toast toast--success">
+      <span class="toast__icon">âœ…</span>
+      <div class="toast__content">
+        <div class="toast__title">Lot <span id="completedLotNumber">â€”</span> Selesai!</div>
+        <div class="toast__sub">Melanjutkan ke Lot <span id="nextLotNumber">â€”</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       DIALOG â€” SEMUA LOT SELESAI
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <div id="completionModal" class="overlay" role="dialog" aria-modal="true">
+    <div class="dialog dialog--success">
+      <div class="dialog__head">
+        <span class="dialog__icon">ðŸ</span>
+        <h2 class="dialog__title">MO Selesai!</h2>
+        <p class="dialog__sub">Semua lot telah berhasil ditimbang</p>
+      </div>
+      <div class="dialog__body">
+        <div class="summary-grid">
+          <div class="summary-card">
+            <span id="summaryMONumber"   class="summary-card__val">â€”</span>
+            <span class="summary-card__label">Nomor MO</span>
+          </div>
+          <div class="summary-card">
+            <span id="summaryTotalLot"   class="summary-card__val">â€”</span>
+            <span class="summary-card__label">Total Lot</span>
+          </div>
+          <div class="summary-card">
+            <span id="summaryRMCount"    class="summary-card__val">â€”</span>
+            <span class="summary-card__label">Item RM</span>
+          </div>
+          <div class="summary-card">
+            <span id="summaryTotalItems" class="summary-card__val">â€”</span>
+            <span class="summary-card__label">Total Timbang</span>
+          </div>
+        </div>
+      </div>
+      <div class="dialog__foot">
+        <button id="completionOkBtn" class="btn btn--success btn--block">Selesai &amp; Reset</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
 </body>
 </html>
+
