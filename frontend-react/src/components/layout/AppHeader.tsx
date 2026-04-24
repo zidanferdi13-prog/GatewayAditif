@@ -1,0 +1,75 @@
+import { Scale } from 'lucide-react';
+import { useClock } from '@/hooks/useClock';
+import { useMOStore } from '@/store/moStore';
+import { useScaleStore } from '@/store/scaleStore';
+import { useUIStore } from '@/store/uiStore';
+import { ConnectionChip } from '@/components/scale/ConnectionChip';
+import { LotCounter } from '@/components/dashboard/LotCounter';
+import { cn } from '@/utils/cn';
+
+export function AppHeader() {
+  const clock      = useClock();
+  const activeMO   = useMOStore((s) => s.activeMO);
+  const small      = useScaleStore((s) => s.small);
+  const large      = useScaleStore((s) => s.large);
+  const openModal  = useUIStore((s) => s.openModal);
+
+  const handleMOClick = () => {
+    if (activeMO) {
+      openModal('confirmReset');
+    } else {
+      openModal('moInput');
+    }
+  };
+
+  return (
+    <header className="app-header h-14 px-6 flex items-center justify-between gap-4 border-b border-b-card bg-bg-surface z-10 shrink-0">
+
+      {/* ── Brand ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 shrink-0">
+        <Scale
+          className="text-c-blue drop-shadow-[0_0_8px_var(--c-blue)]"
+          size={22}
+          strokeWidth={2.2}
+        />
+        <div className="flex flex-col leading-tight">
+          <span className="text-sm font-bold text-t-primary">AMA Timbangan</span>
+          <span className="text-[10px] font-medium text-t-secondary uppercase tracking-[0.9px]">
+            Aditif Monitor
+          </span>
+        </div>
+      </div>
+
+      {/* ── Centre: MO Button + Lot Counter ───────────────────────────────── */}
+      <div className="flex items-center justify-center gap-3 flex-1">
+        <button
+          onClick={handleMOClick}
+          className={cn(
+            'inline-flex items-center gap-1 px-4 py-1.5 rounded-pill border-[1.5px]',
+            'font-ui text-[13px] font-bold tracking-[0.4px] cursor-pointer',
+            'transition-all duration-200 whitespace-nowrap',
+            activeMO
+              ? 'text-c-green border-c-green bg-c-green-dim hover:bg-c-green hover:text-white hover:shadow-glow-green'
+              : 'text-c-red border-c-red bg-c-red-dim hover:bg-c-red hover:text-white hover:shadow-glow-red',
+          )}
+        >
+          <span className="text-sm">📋</span>
+          <span>{activeMO ?? 'INPUT MO'}</span>
+        </button>
+
+        <LotCounter />
+      </div>
+
+      {/* ── Right: Connection chips + Clock ───────────────────────────────── */}
+      <div className="flex items-center gap-4 shrink-0">
+        <div className="flex gap-2">
+          <ConnectionChip label="S1" connected={small.connected} />
+          <ConnectionChip label="S2" connected={large.connected} />
+        </div>
+        <span className="font-mono text-sm font-semibold text-t-secondary tracking-[1.5px] min-w-[68px] text-right">
+          {clock}
+        </span>
+      </div>
+    </header>
+  );
+}

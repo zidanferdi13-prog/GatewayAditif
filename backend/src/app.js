@@ -5,7 +5,11 @@ const path    = require('path');
 const helmet  = require('helmet');
 const apiRoutes = require('./routes');
 
-const FRONTEND_DIR = path.join(__dirname, '../../frontend/public');
+// In Docker the ENV var points to /app/public (built React dist).
+// In local dev without Docker it falls back to the Vite build output.
+const FRONTEND_DIR =
+  process.env.FRONTEND_DIR ||
+  path.join(__dirname, '../../frontend-react/dist');
 
 function createApp(controllers) {
   const app = express();
@@ -15,7 +19,8 @@ function createApp(controllers) {
     contentSecurityPolicy: {
       directives: {
         defaultSrc:  ["'self'"],
-        scriptSrc:   ["'self'", 'cdn.socket.io', 'fonts.googleapis.com'],
+        // socket.io is now bundled by Vite — no CDN required
+        scriptSrc:   ["'self'"],
         styleSrc:    ["'self'", "'unsafe-inline'", 'fonts.googleapis.com'],
         fontSrc:     ["'self'", 'fonts.gstatic.com'],
         connectSrc:  ["'self'", 'ws:', 'wss:'],
