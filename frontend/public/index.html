@@ -12,12 +12,15 @@
 </head>
 <body>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       HEADER
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- HEADER -->
   <header class="app-header">
     <div class="header-brand">
-      <span class="brand-icon">âš–</span>
+      <svg class="icon icon--brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="12" y1="3" x2="12" y2="21"/>
+        <line x1="5" y1="21" x2="19" y2="21"/>
+        <line x1="5" y1="7" x2="19" y2="7"/>
+        <path d="M5 7l-2 5h4zM19 7l-2 5h4z"/>
+      </svg>
       <div class="brand-text">
         <span class="brand-name">AMA Timbangan</span>
         <span class="brand-sub">Aditif Monitor</span>
@@ -26,7 +29,10 @@
 
     <div class="header-center">
       <button id="input-mo" class="mo-btn mo-btn--idle">
-        <span class="mo-btn__icon">ðŸ“‹</span>
+        <svg class="icon icon--btn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+          <rect x="8" y="2" width="8" height="4" rx="1"/>
+        </svg>
         <span id="nomorMO">INPUT MO</span>
       </button>
       <div class="lot-counter">
@@ -54,9 +60,7 @@
     </div>
   </header>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       MAIN â€” DUAL SCALE PANELS
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- MAIN - DUAL SCALE PANELS -->
   <main class="main-content">
 
     <!-- TIMBANGAN KECIL -->
@@ -64,7 +68,7 @@
       <div class="panel-header">
         <div class="panel-header__left">
           <span class="panel-badge panel-badge--small">SMALL</span>
-          <span class="panel-range">â‰¤ 2 kg</span>
+          <span class="panel-range">&le; 2 kg</span>
         </div>
         <div class="stability-pill" id="stabilitySmall">
           <span class="stability-pill__dot"></span>
@@ -72,7 +76,7 @@
         </div>
       </div>
 
-      <div class="panel-material" id="materialBahanSmall">â€” Bahan Material â€”</div>
+      <div class="panel-material" id="materialBahanSmall">Bahan Material</div>
 
       <div class="weight-readout">
         <span class="weight-readout__val" id="liveWeightSmall">--.-</span>
@@ -90,9 +94,12 @@
       </div>
 
       <div class="panel-footer">
-        <span class="panel-timestamp" id="lastUpdateSmall">Menunggu dataâ€¦</span>
+        <span class="panel-timestamp" id="lastUpdateSmall">Menunggu data&hellip;</span>
         <button id="printBtnSmall" class="confirm-btn">
-          <span>âœ”</span> Konfirmasi
+          <svg class="icon icon--btn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Konfirmasi
         </button>
       </div>
     </section>
@@ -117,7 +124,7 @@
         </div>
       </div>
 
-      <div class="panel-material" id="materialBahanLarge">â€” Bahan Material â€”</div>
+      <div class="panel-material" id="materialBahanLarge">Bahan Material</div>
 
       <div class="weight-readout">
         <span class="weight-readout__val" id="liveWeightLarge">--.-</span>
@@ -135,22 +142,27 @@
       </div>
 
       <div class="panel-footer">
-        <span class="panel-timestamp" id="lastUpdateLarge">Menunggu dataâ€¦</span>
+        <span class="panel-timestamp" id="lastUpdateLarge">Menunggu data&hellip;</span>
         <button id="printBtnLarge" class="confirm-btn">
-          <span>âœ”</span> Konfirmasi
+          <svg class="icon icon--btn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Konfirmasi
         </button>
       </div>
     </section>
 
   </main>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       DIALOG â€” INPUT MO
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- DIALOG - INPUT MO -->
   <div id="moModal" class="overlay" role="dialog" aria-modal="true">
     <div class="dialog">
       <div class="dialog__head">
-        <span class="dialog__icon">ðŸ“‹</span>
+        <svg class="icon icon--xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+          <rect x="8" y="2" width="8" height="4" rx="1"/>
+          <path d="M9 12h6M9 16h4"/>
+        </svg>
         <h2 class="dialog__title">Input Nomor MO</h2>
         <p class="dialog__sub">Masukkan nomor Manufacturing Order untuk memulai penimbangan</p>
       </div>
@@ -158,7 +170,7 @@
         <div class="field-wrap">
           <label class="field-label" for="moInputField">Nomor MO</label>
           <input id="moInputField" class="field-input" type="text"
-                 placeholder="Contoh: MO-2026-001" maxlength="50" autocomplete="off">
+                 placeholder="Contoh: MO-2026-001" maxlength="50" autocomplete="off" inputmode="text">
         </div>
       </div>
       <div class="dialog__foot">
@@ -168,20 +180,22 @@
     </div>
   </div>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       DIALOG â€” KONFIRMASI RESET MO
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- DIALOG - KONFIRMASI RESET MO -->
   <div id="confirmResetModal" class="overlay" role="dialog" aria-modal="true">
     <div class="dialog dialog--warn">
       <div class="dialog__head">
-        <span class="dialog__icon">âš </span>
+        <svg class="icon icon--xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
         <h2 class="dialog__title">Reset MO?</h2>
         <p class="dialog__sub">Semua progres lot saat ini akan dihapus</p>
       </div>
       <div class="dialog__body">
         <div class="kv-box kv-box--warn">
           <span class="kv-box__label">MO Aktif</span>
-          <span id="currentMODisplay" class="kv-box__val">â€”</span>
+          <span id="currentMODisplay" class="kv-box__val">&mdash;</span>
         </div>
       </div>
       <div class="dialog__foot">
@@ -191,13 +205,14 @@
     </div>
   </div>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       DIALOG â€” OVERLOAD ALARM
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- DIALOG - OVERLOAD ALARM -->
   <div id="alertOverloadModal" class="overlay overlay--alarm" role="alertdialog" aria-modal="true">
     <div class="dialog dialog--alarm">
       <div class="dialog__head">
-        <span class="dialog__icon dialog__icon--flash">â›”</span>
+        <svg class="icon icon--xl icon--flash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
         <h2 class="dialog__title">BERAT MELEBIHI TARGET</h2>
         <p class="dialog__sub">Segera angkat material dari timbangan</p>
       </div>
@@ -225,13 +240,15 @@
     </div>
   </div>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       DIALOG â€” KONFIRMASI DATA MO
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- DIALOG - KONFIRMASI DATA MO -->
   <div id="moDataConfirmModal" class="overlay" role="dialog" aria-modal="true">
     <div class="dialog dialog--wide">
       <div class="dialog__head">
-        <span class="dialog__icon">ðŸ“¦</span>
+        <svg class="icon icon--xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
         <h2 class="dialog__title">Konfirmasi Data MO</h2>
         <p class="dialog__sub">Periksa detail sebelum proses penimbangan dimulai</p>
       </div>
@@ -239,15 +256,15 @@
         <div class="mo-stats">
           <div class="mo-stat">
             <span class="mo-stat__label">Nomor MO</span>
-            <span id="confirmMONumber" class="mo-stat__val">â€”</span>
+            <span id="confirmMONumber" class="mo-stat__val">&mdash;</span>
           </div>
           <div class="mo-stat">
             <span class="mo-stat__label">Total Lot</span>
-            <span id="confirmTotalLot" class="mo-stat__val">â€”</span>
+            <span id="confirmTotalLot" class="mo-stat__val">&mdash;</span>
           </div>
           <div class="mo-stat">
             <span class="mo-stat__label">Produk RM</span>
-            <span id="confirmRMCount" class="mo-stat__val">â€”</span>
+            <span id="confirmRMCount" class="mo-stat__val">&mdash;</span>
           </div>
         </div>
         <div class="rm-list-title">Detail Produk RM</div>
@@ -260,45 +277,46 @@
     </div>
   </div>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       TOAST â€” LOT SELESAI
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- TOAST - LOT SELESAI -->
   <div id="lotIncrementModal" class="overlay overlay--toast" aria-live="polite">
     <div class="toast toast--success">
-      <span class="toast__icon">âœ…</span>
+      <svg class="icon icon--md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
       <div class="toast__content">
-        <div class="toast__title">Lot <span id="completedLotNumber">â€”</span> Selesai!</div>
-        <div class="toast__sub">Melanjutkan ke Lot <span id="nextLotNumber">â€”</span></div>
+        <div class="toast__title">Lot <span id="completedLotNumber">&mdash;</span> Selesai!</div>
+        <div class="toast__sub">Melanjutkan ke Lot <span id="nextLotNumber">&mdash;</span></div>
       </div>
     </div>
   </div>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       DIALOG â€” SEMUA LOT SELESAI
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- DIALOG - SEMUA LOT SELESAI -->
   <div id="completionModal" class="overlay" role="dialog" aria-modal="true">
     <div class="dialog dialog--success">
       <div class="dialog__head">
-        <span class="dialog__icon">ðŸ</span>
+        <svg class="icon icon--xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
         <h2 class="dialog__title">MO Selesai!</h2>
         <p class="dialog__sub">Semua lot telah berhasil ditimbang</p>
       </div>
       <div class="dialog__body">
         <div class="summary-grid">
           <div class="summary-card">
-            <span id="summaryMONumber"   class="summary-card__val">â€”</span>
+            <span id="summaryMONumber"   class="summary-card__val">&mdash;</span>
             <span class="summary-card__label">Nomor MO</span>
           </div>
           <div class="summary-card">
-            <span id="summaryTotalLot"   class="summary-card__val">â€”</span>
+            <span id="summaryTotalLot"   class="summary-card__val">&mdash;</span>
             <span class="summary-card__label">Total Lot</span>
           </div>
           <div class="summary-card">
-            <span id="summaryRMCount"    class="summary-card__val">â€”</span>
+            <span id="summaryRMCount"    class="summary-card__val">&mdash;</span>
             <span class="summary-card__label">Item RM</span>
           </div>
           <div class="summary-card">
-            <span id="summaryTotalItems" class="summary-card__val">â€”</span>
+            <span id="summaryTotalItems" class="summary-card__val">&mdash;</span>
             <span class="summary-card__label">Total Timbang</span>
           </div>
         </div>
@@ -311,5 +329,4 @@
 
   <script src="js/app.js"></script>
 </body>
-</html>
-
+</html>  
